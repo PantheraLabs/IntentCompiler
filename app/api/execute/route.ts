@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertOpenAiKey, openai } from "@/lib/openai";
+import { getOpenAIClient } from "@/lib/openai";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import type { UserContext, WorkflowStep } from "@/lib/types";
 
@@ -26,7 +26,7 @@ const executionSchema = {
 
 export async function POST(req: Request) {
   try {
-    assertOpenAiKey();
+    const openai = getOpenAIClient();
     const body = (await req.json()) as ExecuteRequest;
     const { step, previousOutputs, userContext, shouldSummarize } = body;
 

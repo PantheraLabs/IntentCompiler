@@ -25,3 +25,17 @@ export type ExecutionState = {
   context: UserContext;
   summary?: string;
 };
+
+// Types for instruction file generation
+export type InstructionContext = {
+  project: string;
+  audience: string;
+  style: string;
+  constraints: string[];
+};
+
+export type GenerateInstructionRequest = {
+  intent: string;
+  context: InstructionContext;
+  target: "claude" | "agents" | "generic";
+};

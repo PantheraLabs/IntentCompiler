@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { useRouter } from "next/navigation";
 import StepCard from "@/components/StepCard";
 import type { UserContext, WorkflowStep, StepMetadata } from "@/lib/types";
@@ -24,6 +25,12 @@ export default function WorkflowPage() {
   const [outputs, setOutputs] = useState<{ stepId: number; output: string }[]>([]);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [runAllLoading, setRunAllLoading] = useState(false);
+  // Instruction generation UI state
+  const [instructionIntent, setInstructionIntent] = useState("");
+  const [instructionContext, setInstructionContext] = useState({ project: "", audience: "", style: "", constraints: [] as string[] });
+  const [target, setTarget] = useState<"claude" | "agents" | "generic">("claude");
+  const [generatedMarkdown, setGeneratedMarkdown] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
   const MAX_RETRIES = 2;
