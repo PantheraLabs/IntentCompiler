@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 10% -20%, rgba(48, 197, 161, 0.14), transparent 60%),
+    radial-gradient(900px 450px at 90% -25%, rgba(105, 160, 255, 0.1), transparent 55%),
+    #0b0f14;
+  color: #e7edf5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
