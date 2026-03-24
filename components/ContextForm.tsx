@@ -402,7 +402,7 @@ export default function ContextForm() {
                   className="flex w-full items-center justify-between rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-left text-sm text-text outline-none transition hover:border-accent focus:border-accent"
                 >
                   <span className="truncate">{modelConfig?.model ?? "Select model"}</span>
-                  <span className="ml-2 text-xs text-muted">{modelPickerOpen ? "▲" : "▼"}</span>
+                  <span className="ml-2 text-xs text-muted">{modelPickerOpen ? "^" : "v"}</span>
                 </button>
 
                 <AnimatePresence>
@@ -418,6 +418,9 @@ export default function ContextForm() {
                         value={modelSearch}
                         onChange={(e) => setModelSearch(e.target.value)}
                         placeholder="Search models..."
+                        autoComplete="off"
+                        spellCheck={false}
+                        name="model_search"
                         className="mb-2 w-full rounded-md border border-border bg-surfaceAlt px-2.5 py-2 text-xs text-text outline-none transition focus:border-accent"
                       />
 
@@ -519,11 +522,26 @@ export default function ContextForm() {
         <AnimatePresence>
           {advancedMode && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={{
+                hidden: { opacity: 0, height: 0, overflow: "hidden" },
+                visible: {
+                  opacity: 1,
+                  height: "auto",
+                  transition: { 
+                    duration: 0.4, 
+                    ease: [0.23, 1, 0.32, 1],
+                    staggerChildren: 0.08 
+                  },
+                  transitionEnd: { overflow: "visible" }
+                }
+              }}
               className="overflow-visible"
+              onAnimationComplete={() => {
+                // Ensure it's visible after animation to prevent clipping of absolute children
+              }}
             >
               <div className="grid gap-4 pt-2 md:grid-cols-3">
                 <motion.div variants={itemVariants}>
@@ -531,7 +549,7 @@ export default function ContextForm() {
                   <select
                     value={context.depth}
                     onChange={(e) => setContext((prev) => ({ ...prev, depth: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+                    className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_0.5rem_center] bg-[length:1.5em_1.5em] bg-no-repeat pr-10"
                   >
                     <option value="basic">basic</option>
                     <option value="detailed">detailed</option>
@@ -645,6 +663,40 @@ export default function ContextForm() {
               <p className="mb-2 text-xs uppercase tracking-[0.12em] text-muted">Behavior Compiler</p>
               <pre className="whitespace-pre-wrap text-xs text-text">{JSON.stringify(instructionResult.behavior, null, 2)}</pre>
             </div>
+            {instructionResult.quality ? (
+              <div className="rounded-lg border border-accent/40 bg-accent/5 p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted">Quality Report</p>
+                  <span className="rounded-full border border-accent/40 bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                    Score: {instructionResult.quality.score}/100
+                  </span>
+                </div>
+                <div className="grid gap-2 text-xs text-text md:grid-cols-3">
+                  <p>Correctness: {instructionResult.quality.dimensions.correctness.toFixed(1)}/5</p>
+                  <p>Specificity: {instructionResult.quality.dimensions.specificity.toFixed(1)}/5</p>
+                  <p>Executability: {instructionResult.quality.dimensions.executability.toFixed(1)}/5</p>
+                  <p>Safety: {instructionResult.quality.dimensions.safety.toFixed(1)}/5</p>
+                  <p>Compatibility: {instructionResult.quality.dimensions.compatibility.toFixed(1)}/5</p>
+                  <p>Brevity: {instructionResult.quality.dimensions.brevity.toFixed(1)}/5</p>
+                </div>
+                <div className="mt-3">
+                  <p className="mb-1 text-[11px] uppercase tracking-[0.12em] text-muted">Issues</p>
+                  {instructionResult.quality.issues.length ? (
+                    <ul className="space-y-1 text-xs text-text">
+                      {instructionResult.quality.issues.slice(0, 8).map((issue, idx) => (
+                        <li key={`${issue.category}-${idx}`} className="rounded border border-border/70 bg-black/20 px-2 py-1">
+                          <span className="mr-1 font-semibold uppercase text-muted">[{issue.severity}]</span>
+                          <span className="mr-1 text-muted">({issue.category})</span>
+                          <span>{issue.message}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-emerald-300">No issues found. File passed all current checks.</p>
+                  )}
+                </div>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-border bg-black/30 p-4 shadow-inner">
               <p className="mb-2 text-xs uppercase tracking-[0.12em] text-muted">Instruction File</p>
               <pre className="whitespace-pre-wrap text-xs text-text">{instructionResult.markdown}</pre>

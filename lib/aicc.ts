@@ -14,6 +14,29 @@ const MODEL_OPTIONS: Record<Provider, string[]> = {
 
 let aiccModelCache: { models: string[]; expiresAt: number } | null = null;
 
+function isTextFirstModel(model: string) {
+  const id = model.toLowerCase();
+  const blockedKeywords = [
+    "image",
+    "vision",
+    "sora",
+    "veo",
+    "kling",
+    "flux",
+    "sdxl",
+    "stable-diffusion",
+    "dall",
+    "whisper",
+    "tts",
+    "audio"
+  ];
+  return !blockedKeywords.some((keyword) => id.includes(keyword));
+}
+
+function filterTextModels(models: string[]) {
+  return models.filter(isTextFirstModel);
+}
+
 function hasProviderKey(provider: Provider) {
   if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
   if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
@@ -63,7 +86,8 @@ async function fetchAiccModels() {
       )
     );
 
-    const resolved = models.length ? models : MODEL_OPTIONS.aicc;
+    const filtered = filterTextModels(models);
+    const resolved = filtered.length ? filtered : MODEL_OPTIONS.aicc;
     aiccModelCache = {
       models: resolved,
       expiresAt: Date.now() + 5 * 60 * 1000
@@ -78,7 +102,7 @@ export async function getModelsForProvider(provider: Provider) {
   if (provider === "aicc") {
     return fetchAiccModels();
   }
-  return MODEL_OPTIONS[provider];
+  return filterTextModels(MODEL_OPTIONS[provider]);
 }
 
 export async function getUniqueModelsByProvider(providers: Provider[]) {

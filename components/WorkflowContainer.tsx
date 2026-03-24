@@ -16,6 +16,23 @@ type WorkflowContainerProps = {
 
 type ExecuteResponse = { output?: string; error?: string };
 type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
+type InstructionQuality = {
+  score: number;
+  dimensions: {
+    correctness: number;
+    specificity: number;
+    executability: number;
+    safety: number;
+    compatibility: number;
+    brevity: number;
+  };
+  issues: Array<{
+    severity: "high" | "medium" | "low";
+    category: "correctness" | "specificity" | "executability" | "safety" | "compatibility" | "brevity";
+    message: string;
+  }>;
+};
+type GenerateInstructionResponse = { markdown?: string; quality?: InstructionQuality; error?: string };
 
 export default function WorkflowContainer({ intent, context, initialSteps, modelConfig }: WorkflowContainerProps) {
   const [steps, setSteps] = useState<WorkflowStep[]>(
@@ -114,6 +131,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   });
   const [targetFile, setTargetFile] = useState<InstructionTarget>("claude");
   const [generatedMarkdown, setGeneratedMarkdown] = useState("");
+  const [generatedQuality, setGeneratedQuality] = useState<InstructionQuality | null>(null);
   const [generating, setGenerating] = useState(false);
 
   const generateInstruction = async () => {
@@ -129,9 +147,10 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
           modelConfig
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed.");
+      const data = (await res.json()) as GenerateInstructionResponse;
+      if (!res.ok || !data.markdown) throw new Error(data.error || "Generation failed.");
       setGeneratedMarkdown(data.markdown);
+      setGeneratedQuality(data.quality ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
@@ -295,6 +314,12 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
                 </button>
               </div>
             </div>
+            {generatedQuality ? (
+              <div className="mb-4 rounded-lg border border-accent/40 bg-accent/5 p-3">
+                <p className="text-xs uppercase tracking-[0.12em] text-muted">Quality Score</p>
+                <p className="mt-1 text-sm font-semibold text-accent">{generatedQuality.score}/100</p>
+              </div>
+            ) : null}
             <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-black/20 p-5 max-h-[400px] overflow-auto">
               <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
             </div>
