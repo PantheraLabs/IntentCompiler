@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import StepCard from "@/components/StepCard";
-import type { UserContext, WorkflowStep } from "@/lib/types";
+import type { UserContext, WorkflowStep, StepMetadata } from "@/lib/types";
 
 type StoredWorkflow = {
   intent: string;
