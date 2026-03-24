@@ -5,8 +5,9 @@ import type { UserContext, WorkflowStep } from "@/lib/types";
 
 type ExecuteRequest = {
   step: WorkflowStep;
-  previousOutputs: string[];
+  previousOutputs: { stepId: number; output: string }[];
   userContext?: UserContext;
+  shouldSummarize?: boolean;
 };
 
 const executionSchema = {
@@ -16,7 +17,8 @@ const executionSchema = {
     additionalProperties: false,
     required: ["output"],
     properties: {
-      output: { type: "string" }
+      output: { type: "string" },
+      summary: { type: "string", description: "A brief summary of what was accomplished in this step (optional)." }
     }
   },
   strict: true
@@ -26,35 +28,50 @@ export async function POST(req: Request) {
   try {
     assertOpenAiKey();
     const body = (await req.json()) as ExecuteRequest;
-    const step = body.step;
-    const previousOutputs = Array.isArray(body.previousOutputs) ? body.previousOutputs : [];
-    const userContext = body.userContext;
+    const { step, previousOutputs, userContext, shouldSummarize } = body;
 
     if (!step?.task) {
       return NextResponse.json({ error: "Invalid step." }, { status: 400 });
     }
 
-    const userContextBlock = `USER CONTEXT:
-project: ${userContext?.project || ""}
-audience: ${userContext?.audience || ""}
-depth: ${userContext?.depth || ""}
-style: ${userContext?.style || ""}
-constraints: ${(userContext?.constraints || []).join(", ")}`;
+    const contextContent = userContext ? `
+PROJECT: ${userContext.project}
+AUDIENCE: ${userContext.audience}
+DEPTH: ${userContext.depth}
+STYLE: ${userContext.style}
+CONSTRAINTS: ${userContext.constraints?.join(", ") || "None"}
+`.trim() : "None";
 
-    const taskBlock = `TASK:
-Execute this workflow step.
-role: ${step.role}
-task: ${step.task}
+    const historyContent = previousOutputs.length > 0
+      ? previousOutputs.map((o, i) => `[Step ${o.stepId} Output]:\n${o.output}`).join("\n\n---\n\n")
+      : "No previous steps.";
 
-Previous step outputs:
-${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n") : "None"}`;
+    const systemPrompt = `${SYSTEM_PROMPT}
+
+As the Execution Engine, your goal is to fulfill the current task while maintaining continuity with previous work.
+If 'shouldSummarize' is true, provide a concise 'summary' field in your response that captures the essence of your output for future steps.
+
+${shouldSummarize ? "Please provide a 'summary' of your output to help keep future context windows clean." : ""}`;
+
+    const taskContent = `
+=== USER CONTEXT ===
+${contextContent}
+
+=== EXECUTION HISTORY ===
+${historyContent}
+
+=== CURRENT TASK ===
+Role: ${step.role}
+Instruction: ${step.task}
+
+Execute this task and return the result in the specified JSON format.
+`.trim();
 
     const response = await openai.responses.create({
       model: "gpt-4.1",
       input: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContextBlock },
-        { role: "user", content: taskBlock }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: taskContent }
       ],
       text: {
         format: {
@@ -66,12 +83,14 @@ ${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join(
       }
     });
 
-    const parsed = JSON.parse(response.output_text) as { output: string };
+    const parsed = JSON.parse(response.output_text) as { output: string; summary?: string };
 
     return NextResponse.json({
-      output: parsed.output || ""
+      output: parsed.output || "",
+      summary: parsed.summary || ""
     });
   } catch (error) {
+    console.error("Execution error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
