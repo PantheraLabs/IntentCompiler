@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { getOpenAIClient } from "@/lib/openai";
+import { getLLMClient, resolveModelConfig } from "@/lib/openai";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
-import type { UserContext } from "@/lib/types";
+import type { ModelConfig, UserContext } from "@/lib/types";
 
 type CompileRequest = {
   intent: string;
   context: UserContext;
+  modelConfig?: Partial<ModelConfig>;
 };
 
 const stepsSchema = {
@@ -37,10 +38,11 @@ const stepsSchema = {
 
 export async function POST(req: Request) {
   try {
-    const openai = getOpenAIClient();
     const body = (await req.json()) as CompileRequest;
     const intent = body.intent?.trim();
     const context = body.context;
+    const modelConfig = resolveModelConfig(body.modelConfig);
+    const { client, model } = getLLMClient(modelConfig);
 
     if (!intent || !context) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
@@ -55,43 +57,45 @@ constraints: ${(context.constraints || []).join(", ")}`;
 
     const task = `TASK:
 Generate a 3-5 step executable workflow from the user intent and context.
-Return JSON with { "steps": [{ "id": number, "role": string, "task": string }] }.
+Return JSON with { "steps": [{ "id": number, "role": string, "task": string, "status": "idle" }] }.
 Ensure steps are in logical sequence and non-redundant.
 
 INTENT:
 ${intent}`;
 
-    const response = await openai.responses.create({
-      model: "gpt-4.1",
-      input: [
+    const response = await client.chat.completions.create({
+      model,
+      response_format: { type: "json_object" },
+      messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContext },
-        { role: "user", content: task }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: stepsSchema.name,
-          schema: stepsSchema.schema,
-          strict: true
+        {
+          role: "user",
+          content: `${task}
+
+Required JSON schema:
+${JSON.stringify(stepsSchema.schema)}`
         }
-      }
+      ]
     });
 
-    const raw = response.output_text;
-    const parsed = JSON.parse(raw) as { steps: Array<{ id: number; role: string; task: string }> };
+    const raw = response.choices[0]?.message?.content || "{}";
+    const parsed = JSON.parse(raw) as {
+      steps: Array<{ id: number; role: string; task: string; status?: "idle" | "running" | "success" | "error" }>;
+    };
 
     const normalized = parsed.steps.slice(0, 5).map((step, index) => ({
       id: index + 1,
       role: String(step.role || "operator"),
-      task: String(step.task || "")
+      task: String(step.task || ""),
+      status: "idle" as const
     }));
 
     if (normalized.length < 3) {
       return NextResponse.json({ error: "Failed to compile enough steps." }, { status: 500 });
     }
 
-    return NextResponse.json({ steps: normalized });
+    return NextResponse.json({ steps: normalized, modelConfig });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

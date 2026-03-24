@@ -3,30 +3,35 @@ export type UserContext = {
   audience: string;
   depth: string;
   style: string;
+  tone?: string;
   constraints: string[];
 };
 
-export type StepMetadata = {
-  status: "idle" | "running" | "completed" | "error";
-  error?: string;
-  attempts?: number;
-  lastRun?: number;
+export type Provider = "openai" | "groq";
+
+export type ExecutionStatus = "idle" | "running" | "success" | "error";
+
+export type ModelConfig = {
+  provider: Provider;
+  model: string;
 };
 
 export type WorkflowStep = {
   id: number;
   role: string;
   task: string;
-  metadata?: StepMetadata;
+  status?: ExecutionStatus;
+  output?: string;
+  error?: string;
 };
 
-export type ExecutionState = {
-  previousOutputs: { stepId: number; output: string }[];
+export type StoredWorkflow = {
+  intent: string;
   context: UserContext;
-  summary?: string;
+  modelConfig: ModelConfig;
+  steps: WorkflowStep[];
 };
 
-// Types for instruction file generation
 export type InstructionContext = {
   project: string;
   audience: string;
