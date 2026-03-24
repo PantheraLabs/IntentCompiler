@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { WorkflowStep } from "@/lib/types";
 
 type StepCardProps = {

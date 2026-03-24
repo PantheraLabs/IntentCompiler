@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StepCard from "@/components/StepCard";
 import type { UserContext, WorkflowStep, StepMetadata } from "@/lib/types";
