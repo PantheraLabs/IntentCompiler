@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import { jsPDF } from "jspdf";
 import StepCard from "@/components/StepCard";
 import ExecutionPanel from "@/components/ExecutionPanel";
+import CompactDropdown from "@/components/ui/CompactDropdown";
 import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";
 
 type WorkflowContainerProps = {
@@ -133,6 +134,14 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   const [generatedMarkdown, setGeneratedMarkdown] = useState("");
   const [generatedQuality, setGeneratedQuality] = useState<InstructionQuality | null>(null);
   const [generating, setGenerating] = useState(false);
+  const formatOptions: Array<{ value: InstructionTarget; label: string }> = [
+    { value: "claude", label: "CLAUDE.md" },
+    { value: "agents", label: "AGENTS.md" },
+    { value: "gemini", label: "GEMINI.md" },
+    { value: "cursor", label: ".cursorrules" },
+    { value: "windsurf", label: ".windsurfrules" },
+    { value: "generic", label: "INSTRUCTIONS.md" }
+  ];
 
   const generateInstruction = async () => {
     setGenerating(true);
@@ -225,18 +234,14 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
           </h2>
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">Format</span>
-            <select
-              className="rounded-lg border border-border bg-surfaceAlt px-3 py-1.5 text-xs text-text outline-none transition focus:border-accent"
+            <div className="w-44">
+              <CompactDropdown
               value={targetFile}
-              onChange={(e) => setTargetFile(e.target.value as InstructionTarget)}
-            >
-              <option value="claude">CLAUDE.md</option>
-              <option value="agents">AGENTS.md</option>
-              <option value="gemini">GEMINI.md</option>
-              <option value="cursor">.cursorrules</option>
-              <option value="windsurf">.windsurfrules</option>
-              <option value="generic">INSTRUCTIONS.md</option>
-            </select>
+                onChange={setTargetFile}
+                options={formatOptions}
+                buttonClassName="py-1.5 text-xs"
+              />
+            </div>
           </div>
         </div>
 

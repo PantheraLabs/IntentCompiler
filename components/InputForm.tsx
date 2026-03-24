@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import CompactDropdown from "@/components/ui/CompactDropdown";
 import type { UserContext, WorkflowStep } from "@/lib/types";
 
 type CompileResponse = {
@@ -110,14 +111,14 @@ export default function InputForm() {
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted">Depth</label>
-            <select
+            <CompactDropdown
               value={context.depth}
-              onChange={(e) => setContext((prev) => ({ ...prev, depth: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
-            >
-              <option value="basic">basic</option>
-              <option value="detailed">detailed</option>
-            </select>
+              onChange={(value) => setContext((prev) => ({ ...prev, depth: value }))}
+              options={[
+                { value: "basic", label: "Basic" },
+                { value: "detailed", label: "Detailed" }
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted">Style</label>

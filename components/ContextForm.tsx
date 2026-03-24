@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
+import CompactDropdown from "@/components/ui/CompactDropdown";
 import type {
   BehaviorDefinition,
   IntentRefinement,
@@ -196,6 +197,30 @@ export default function ContextForm() {
     return Array.from(groups.entries());
   }, [filteredModels]);
 
+  const providerOptions = useMemo(
+    () =>
+      models.map((entry) => ({
+        value: entry.provider,
+        label: entry.provider.toUpperCase(),
+        hint: `${entry.models.length} models`
+      })),
+    [models]
+  );
+
+  const instructionTargetOptions: Array<{ value: InstructionTarget; label: string; hint?: string }> = [
+    { value: "claude", label: "CLAUDE.md" },
+    { value: "agents", label: "AGENTS.md" },
+    { value: "gemini", label: "GEMINI.md" },
+    { value: "cursor", label: ".cursorrules" },
+    { value: "windsurf", label: ".windsurfrules" },
+    { value: "generic", label: "INSTRUCTIONS.md" }
+  ];
+
+  const depthOptions: Array<{ value: "basic" | "detailed"; label: string }> = [
+    { value: "basic", label: "Basic" },
+    { value: "detailed", label: "Detailed" }
+  ];
+
   useEffect(() => {
     if (!modelPickerOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
@@ -370,24 +395,17 @@ export default function ContextForm() {
             {loadingModels ? (
               <div className="h-10 animate-pulse rounded-lg border border-border bg-surfaceAlt" />
             ) : (
-              <select
-                value={modelConfig?.provider ?? ""}
-                onChange={(e) => {
-                  const provider = e.target.value as Provider;
+              <CompactDropdown
+                value={modelConfig?.provider ?? providerOptions[0]?.value ?? "aicc"}
+                options={providerOptions}
+                onChange={(provider) => {
                   const providerModels = models.find((entry) => entry.provider === provider)?.models ?? [];
                   setModelConfig({ provider, model: providerModels[0] ?? "" });
                   setModelSearch("");
                   setModelView("recommended");
                   setModelPickerOpen(false);
                 }}
-                className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
-              >
-                {models.map((entry) => (
-                  <option key={entry.provider} value={entry.provider}>
-                    {entry.provider}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </div>
           <div>
@@ -485,18 +503,11 @@ export default function ContextForm() {
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-3">
           <div>
             <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted font-bold">Instruction Target</label>
-            <select
+            <CompactDropdown
               value={target}
-              onChange={(e) => setTarget(e.target.value as InstructionTarget)}
-              className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
-            >
-              <option value="claude">CLAUDE.md</option>
-              <option value="agents">AGENTS.md</option>
-              <option value="gemini">GEMINI.md</option>
-              <option value="cursor">.cursorrules</option>
-              <option value="windsurf">.windsurfrules</option>
-              <option value="generic">INSTRUCTIONS.md</option>
-            </select>
+              onChange={setTarget}
+              options={instructionTargetOptions}
+            />
           </div>
         </motion.div>
 
@@ -546,14 +557,11 @@ export default function ContextForm() {
               <div className="grid gap-4 pt-2 md:grid-cols-3">
                 <motion.div variants={itemVariants}>
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Depth</label>
-                  <select
+                  <CompactDropdown
                     value={context.depth}
-                    onChange={(e) => setContext((prev) => ({ ...prev, depth: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_0.5rem_center] bg-[length:1.5em_1.5em] bg-no-repeat pr-10"
-                  >
-                    <option value="basic">basic</option>
-                    <option value="detailed">detailed</option>
-                  </select>
+                    onChange={(value) => setContext((prev) => ({ ...prev, depth: value }))}
+                    options={depthOptions}
+                  />
                 </motion.div>
                 <motion.div variants={itemVariants}>
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Style</label>
