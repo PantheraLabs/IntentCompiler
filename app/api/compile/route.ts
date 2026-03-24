@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLLMClient, resolveModelConfig } from "@/lib/openai";
+import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import type { ModelConfig, UserContext } from "@/lib/types";
 
@@ -41,8 +41,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as CompileRequest;
     const intent = body.intent?.trim();
     const context = body.context;
-    const modelConfig = resolveModelConfig(body.modelConfig);
-    const { client, model } = getLLMClient(modelConfig);
+    const modelConfig = resolveModelConfig(body.modelConfig, "structured");
 
     if (!intent || !context) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
@@ -63,10 +62,8 @@ Ensure steps are in logical sequence and non-redundant.
 INTENT:
 ${intent}`;
 
-    const response = await client.chat.completions.create({
-      model,
-      response_format: { type: "json_object" },
-      messages: [
+    const response = await callAICC(
+      [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContext },
         {
@@ -76,10 +73,11 @@ ${intent}`;
 Required JSON schema:
 ${JSON.stringify(stepsSchema.schema)}`
         }
-      ]
-    });
+      ],
+      modelConfig
+    );
 
-    const raw = response.choices[0]?.message?.content || "{}";
+    const raw = extractAiccContent(response);
     const parsed = JSON.parse(raw) as {
       steps: Array<{ id: number; role: string; task: string; status?: "idle" | "running" | "success" | "error" }>;
     };

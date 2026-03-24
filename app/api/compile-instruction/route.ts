@@ -4,7 +4,10 @@ import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
 import { evaluateInstructionMarkdown, improveInstructionMarkdown } from "@/lib/instructionQuality";
 import type { BehaviorDefinition, GenerateInstructionRequest, IntentRefinement, ModelConfig, StructuredContext, UserContext } from "@/lib/types";
 
-type RequestBody = GenerateInstructionRequest & { context: UserContext };
+type CompileInstructionRequest = GenerateInstructionRequest & {
+  context: UserContext;
+  modelConfig?: Partial<ModelConfig>;
+};
 
 async function callJsonTask<T>({
   modelConfig,
@@ -21,7 +24,13 @@ async function callJsonTask<T>({
     [
       { role: "system", content: systemContextBlock() },
       { role: "user", content: userContextBlock },
-      { role: "user", content: `${task}\n\nRequired JSON schema:\n${JSON.stringify(schema)}` }
+      {
+        role: "user",
+        content: `${task}
+
+Required JSON schema:
+${JSON.stringify(schema)}`
+      }
     ],
     modelConfig
   );
@@ -30,31 +39,29 @@ async function callJsonTask<T>({
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as RequestBody;
-    const { intent, context, target, modelConfig } = body;
-
-    if (!intent || !context) {
-      return NextResponse.json({ error: "Missing intent or context." }, { status: 400 });
+    const body = (await req.json()) as CompileInstructionRequest;
+    if (!body.intent?.trim()) {
+      return NextResponse.json({ error: "Intent is required." }, { status: 400 });
     }
 
-    const baseProvider = resolveModelConfig(modelConfig, "complex").provider;
-    const refinementConfig = resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "complex");
-    const contextConfig = resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "structured");
-    const behaviorConfig = resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "complex");
-    const behaviorTarget = target === "claude" || target === "agents" ? target : "generic";
-    const userContextBlock = buildUserContextBlock(intent, context);
+    const baseProvider = resolveModelConfig(body.modelConfig, "complex").provider;
+    const refinementConfig = resolveModelConfig({ provider: baseProvider, model: body.modelConfig?.model }, "complex");
+    const contextConfig = resolveModelConfig({ provider: baseProvider, model: body.modelConfig?.model }, "structured");
+    const behaviorConfig = resolveModelConfig({ provider: baseProvider, model: body.modelConfig?.model }, "complex");
+    const behaviorTarget = body.target === "claude" || body.target === "agents" ? body.target : "generic";
+    const userContextBlock = buildUserContextBlock(body.intent, body.context);
 
     const refinement = await callJsonTask<IntentRefinement>({
       modelConfig: refinementConfig,
       userContextBlock,
-      task: buildRefinementTask(intent),
+      task: buildRefinementTask(body.intent),
       schema: refinementSchema
     });
 
     const structuredContext = await callJsonTask<StructuredContext>({
       modelConfig: contextConfig,
       userContextBlock,
-      task: buildContextTask(refinement, context),
+      task: buildContextTask(refinement, body.context),
       schema: contextSchema
     });
 
@@ -65,16 +72,16 @@ export async function POST(req: Request) {
       schema: behaviorSchema
     });
 
-    let markdown = createInstructionMarkdown(target, refinement, structuredContext, behavior);
+    let markdown = createInstructionMarkdown(body.target, refinement, structuredContext, behavior);
     let quality = await evaluateInstructionMarkdown({
       markdown,
-      target,
+      target: body.target,
       projectRoot: process.cwd()
     });
 
     const improved = await improveInstructionMarkdown({
       markdown,
-      target,
+      target: body.target,
       modelConfig: refinementConfig,
       quality
     });
@@ -83,15 +90,21 @@ export async function POST(req: Request) {
       markdown = improved;
       quality = await evaluateInstructionMarkdown({
         markdown,
-        target,
+        target: body.target,
         projectRoot: process.cwd()
       });
     }
 
-    return NextResponse.json({ markdown, refinement, structuredContext, behavior, quality, modelConfig: refinementConfig });
+    return NextResponse.json({
+      refinement,
+      structuredContext,
+      behavior,
+      markdown,
+      quality,
+      modelConfig: refinementConfig
+    });
   } catch (error) {
-    console.error("Instruction Generation Error:", error);
-    const message = error instanceof Error ? error.message : "Internal server error";
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

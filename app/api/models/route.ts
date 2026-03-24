@@ -1,26 +1,25 @@
 import { NextResponse } from "next/server";
-import { MODEL_OPTIONS, getDefaultModelConfig } from "@/lib/openai";
-import type { Provider } from "@/lib/types";
+import { assertAnyProviderKey, getAvailableProviders, getUniqueModelsByProvider, resolveModelConfig } from "@/lib/aicc";
 
 export async function GET() {
-  const availableProviders: Provider[] = [];
-  if (process.env.OPENAI_API_KEY) availableProviders.push("openai");
-  if (process.env.GROQ_API_KEY) availableProviders.push("groq");
-
-  if (!availableProviders.length) {
+  try {
+    assertAnyProviderKey();
+  } catch {
     return NextResponse.json(
-      { error: "No model provider configured. Set OPENAI_API_KEY or GROQ_API_KEY." },
+      { error: "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, or AICC_API_KEY." },
       { status: 500 }
     );
   }
 
-  const providers = availableProviders.map((provider) => ({
-    provider,
-    models: MODEL_OPTIONS[provider]
-  }));
+  const providers = (await getUniqueModelsByProvider(getAvailableProviders())).filter((entry) => entry.models.length > 0);
+  const fallbackConfig = resolveModelConfig(undefined, "complex");
+  const firstProvider = providers[0];
+  const defaultConfig = firstProvider
+    ? { provider: firstProvider.provider, model: firstProvider.models[0] || fallbackConfig.model }
+    : fallbackConfig;
 
   return NextResponse.json({
     providers,
-    defaultConfig: getDefaultModelConfig()
+    defaultConfig
   });
 }

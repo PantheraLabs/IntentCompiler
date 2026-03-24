@@ -37,8 +37,8 @@ export default function StepCard({
 
   return (
     <article
-      className={`rounded-xl border p-4 transition-all duration-300 ${statusClass[status]} ${
-        isCurrent ? "translate-y-[-1px]" : "translate-y-0"
+      className={`rounded-2xl border p-6 transition-all duration-500 ease-out backdrop-blur-xl shadow-lg ${statusClass[status]} ${
+        isCurrent ? "translate-y-[-4px] shadow-xl shadow-accent/5" : "translate-y-0"
       }`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">

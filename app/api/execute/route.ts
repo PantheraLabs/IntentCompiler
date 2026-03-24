@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLLMClient, resolveModelConfig } from "@/lib/openai";
+import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";
 
@@ -27,8 +27,7 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ExecuteRequest;
     const { step, previousOutputs, userContext } = body;
-    const modelConfig = resolveModelConfig(body.modelConfig);
-    const { client, model } = getLLMClient(modelConfig);
+    const modelConfig = resolveModelConfig(body.modelConfig, "complex");
 
     if (!step?.task) {
       return NextResponse.json({ error: "Invalid step." }, { status: 400 });
@@ -50,10 +49,8 @@ task: ${step.task}
 Previous outputs:
 ${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n") : "None"}`;
 
-    const response = await client.chat.completions.create({
-      model,
-      response_format: { type: "json_object" },
-      messages: [
+    const response = await callAICC(
+      [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContextBlock },
         {
@@ -63,10 +60,11 @@ ${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join(
 Required JSON schema:
 ${JSON.stringify(executionSchema.schema)}`
         }
-      ]
-    });
+      ],
+      modelConfig
+    );
 
-    const parsed = JSON.parse(response.choices[0]?.message?.content || "{}") as { output: string };
+    const parsed = JSON.parse(extractAiccContent(response)) as { output: string };
     return NextResponse.json({ output: parsed.output || "" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

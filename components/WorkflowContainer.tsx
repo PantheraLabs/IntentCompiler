@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { jsPDF } from "jspdf";
 import StepCard from "@/components/StepCard";
 import ExecutionPanel from "@/components/ExecutionPanel";
 import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";
@@ -13,6 +15,7 @@ type WorkflowContainerProps = {
 };
 
 type ExecuteResponse = { output?: string; error?: string };
+type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
 
 export default function WorkflowContainer({ intent, context, initialSteps, modelConfig }: WorkflowContainerProps) {
   const [steps, setSteps] = useState<WorkflowStep[]>(
@@ -101,14 +104,68 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
 
   const updateTask = (index: number, task: string) => patchStep(index, { task, status: "idle" });
 
+  // Instruction Generator State
+  const [instructionIntent, setInstructionIntent] = useState(intent);
+  const [instructionContext, setInstructionContext] = useState({
+    project: context.project,
+    audience: context.audience,
+    style: context.style,
+    constraints: context.constraints || []
+  });
+  const [targetFile, setTargetFile] = useState<InstructionTarget>("claude");
+  const [generatedMarkdown, setGeneratedMarkdown] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  const generateInstruction = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/generate-instructions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intent: instructionIntent,
+          context: instructionContext,
+          target: targetFile,
+          modelConfig
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed.");
+      setGeneratedMarkdown(data.markdown);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const downloadMD = () => {
+    const blob = new Blob([generatedMarkdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${targetFile.toUpperCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const splitText = doc.splitTextToSize(generatedMarkdown, 180);
+    doc.text(splitText, 15, 15);
+    doc.save(`${targetFile.toUpperCase()}.pdf`);
+  };
+
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <p className="text-xs uppercase tracking-[0.12em] text-muted">Intent</p>
-        <p className="mt-1 text-sm text-text">{intent}</p>
-        <p className="mt-2 text-xs text-muted">
-          Provider: {modelConfig.provider} | Model: {modelConfig.model}
-        </p>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 pb-20 px-4">
+      <section className="rounded-3xl border border-border bg-surface/70 p-8 backdrop-blur-xl shadow-xl">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs uppercase tracking-[0.15em] text-muted font-bold">Original Intent</p>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+            {modelConfig.provider}:{modelConfig.model}
+          </span>
+        </div>
+        <p className="text-lg font-medium text-text leading-relaxed">{intent}</p>
       </section>
 
       <ExecutionPanel
@@ -138,6 +195,112 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
           />
         ))}
       </div>
+
+      {/* Instruction Generator Card */}
+      <section className="mt-12 rounded-[2.5rem] border border-border bg-surface/70 p-10 shadow-2xl backdrop-blur-2xl space-y-8">
+        <div className="flex items-center justify-between border-b border-white/5 pb-6">
+          <h2 className="text-2xl font-bold text-text">
+            <span className="bg-gradient-to-br from-accent via-accent to-accent/40 bg-clip-text text-transparent">
+              Instruction
+            </span> Generator
+          </h2>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">Format</span>
+            <select
+              className="rounded-lg border border-border bg-surfaceAlt px-3 py-1.5 text-xs text-text outline-none transition focus:border-accent"
+              value={targetFile}
+              onChange={(e) => setTargetFile(e.target.value as InstructionTarget)}
+            >
+              <option value="claude">CLAUDE.md</option>
+              <option value="agents">AGENTS.md</option>
+              <option value="gemini">GEMINI.md</option>
+              <option value="cursor">.cursorrules</option>
+              <option value="windsurf">.windsurfrules</option>
+              <option value="generic">INSTRUCTIONS.md</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Refined Intent</label>
+              <textarea
+                className="w-full min-h-[100px] rounded-lg border border-border bg-surfaceAlt p-3 text-sm text-text outline-none transition focus:border-accent"
+                placeholder="What should this instruction file achieve?"
+                value={instructionIntent}
+                onChange={(e) => setInstructionIntent(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Tone & Style</label>
+              <input
+                className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+                placeholder="Professional, technical, etc."
+                value={instructionContext.style}
+                onChange={(e) => setInstructionContext({ ...instructionContext, style: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Constraints</label>
+              <textarea
+                className="w-full min-h-[100px] rounded-lg border border-border bg-surfaceAlt p-3 text-sm text-text outline-none transition focus:border-accent"
+                placeholder="Strict rules for the AI (one per line)"
+                value={instructionContext.constraints.join("\n")}
+                onChange={(e) => setInstructionContext({ 
+                  ...instructionContext, 
+                  constraints: e.target.value.split("\n").filter(c => c.trim() !== "") 
+                })}
+              />
+            </div>
+
+            <button
+              onClick={generateInstruction}
+              disabled={generating || !instructionIntent.trim()}
+              className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-black shadow-lg shadow-accent/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? "Generating..." : "Generate Instructions"}
+            </button>
+          </div>
+        </div>
+
+        {generatedMarkdown && (
+          <div className="mt-8 border-t border-border pt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted">Preview & Export</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={downloadMD}
+                  className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text transition hover:border-accent"
+                >
+                  Download .MD
+                </button>
+                <button
+                  onClick={downloadPDF}
+                  className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text transition hover:border-accent"
+                >
+                  Download .PDF
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedMarkdown);
+                  }}
+                  className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent transition hover:border-accent"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-black/20 p-5 max-h-[400px] overflow-auto">
+              <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

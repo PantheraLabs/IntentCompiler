@@ -7,7 +7,7 @@ export type UserContext = {
   constraints: string[];
 };
 
-export type Provider = "openai" | "groq";
+export type Provider = "openai" | "groq" | "aicc";
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
 
@@ -42,5 +42,27 @@ export type InstructionContext = {
 export type GenerateInstructionRequest = {
   intent: string;
   context: InstructionContext;
-  target: "claude" | "agents" | "generic";
+  target: "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
+  modelConfig?: Partial<ModelConfig>;
+};
+
+export type IntentRefinement = {
+  interpreted_intent: string;
+  assumptions: string[];
+  clarified_goal: string;
+};
+
+export type StructuredContext = {
+  project: string;
+  audience: string;
+  tech_stack: string;
+  constraints: string[];
+};
+
+export type BehaviorDefinition = {
+  role: string;
+  objectives: string[];
+  rules: string[];
+  execution_style: string;
+  output_format: string;
 };
