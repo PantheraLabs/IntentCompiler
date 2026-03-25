@@ -19,6 +19,9 @@ Complex technical tasks often fail due to poorly defined context, shifting requi
 - **Inspiration Marquee:** An animated, interactive carousel of diverse example intents to jumpstart your workflow.
 - **Intelligent Model Orchestration:** A 3-tier model strategy (Quality, Efficiency, Speed) that automatically selects the best LLM (Llama 3.3, Claude 3.5, GPT-4o-mini, etc.) for each sub-task.
 - **Dynamic Provider Support:** Real-time fetching and selection of models from Groq and OpenAI.
+- **Local LLM Support (Ollama):** High-speed, private inference using models running on your local machine (e.g., Llama 3, Mistral, Phi-3).
+- **Vibe Mode:** A dedicated high-fidelity UI view for ultra-fast architectural building.
+- **Project Scan Engine:** Automatically detects your project's name and tech stack (Next.js, React, Tailwind, TS) to provide zero-click context.
 
 ## Architecture
 
