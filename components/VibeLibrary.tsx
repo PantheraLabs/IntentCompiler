@@ -33,7 +33,9 @@ export default function VibeLibrary({ builtInVibes, onSelectVibe, isOpen, onClos
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    setCustomVibes(getStoredVibes());
+    if (typeof window !== 'undefined') {
+      setCustomVibes(getStoredVibes());
+    }
   }, []);
 
   const handleSave = () => {
@@ -41,7 +43,7 @@ export default function VibeLibrary({ builtInVibes, onSelectVibe, isOpen, onClos
     
     const vibeToSave: VibeTemplate = {
       ...editingVibe,
-      id: editingVibe.id || crypto.randomUUID()
+      id: editingVibe.id || (typeof window !== 'undefined' ? crypto.randomUUID() : '')
     };
     
     saveVibe(vibeToSave);
@@ -61,7 +63,7 @@ export default function VibeLibrary({ builtInVibes, onSelectVibe, isOpen, onClos
   const handleDuplicate = (vibe: VibeTemplate) => {
     const duplicated: VibeTemplate = {
       ...vibe,
-      id: crypto.randomUUID(),
+      id: typeof window !== 'undefined' ? crypto.randomUUID() : '',
       name: `${vibe.name} (Copy)`,
       isBuiltIn: false
     };
@@ -94,7 +96,7 @@ export default function VibeLibrary({ builtInVibes, onSelectVibe, isOpen, onClos
   };
 
   const startNew = () => {
-    setEditingVibe({ ...emptyVibe, id: crypto.randomUUID() });
+    setEditingVibe({ ...emptyVibe, id: typeof window !== 'undefined' ? crypto.randomUUID() : '' });
     setIsEditing(true);
     setActiveTab("create");
   };

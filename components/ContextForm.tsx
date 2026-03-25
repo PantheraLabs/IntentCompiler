@@ -550,7 +550,7 @@ export default function ContextForm() {
 
       // Support both new workflow format and legacy format
       const workflowData = data.workflow || {
-        id: crypto.randomUUID(),
+        id: typeof window !== 'undefined' ? crypto.randomUUID() : '',
         steps: data.steps || []
       };
 
@@ -861,14 +861,21 @@ export default function ContextForm() {
                                       setModelConfig((prev) => (prev ? { ...prev, model } : null));
                                       setModelPickerOpen(false);
                                     }}
-                                    className={`w-full rounded-md border px-2.5 py-1.5 text-left text-xs transition ${
+                                    className={`w-full rounded-md border px-2.5 py-1.5 text-left text-xs transition relative group ${
                                       modelConfig?.model === model
                                         ? "border-accent bg-accent/15 text-accent"
                                         : "border-border text-text hover:border-accent/50"
                                     }`}
                                   >
-                                    <p className="truncate font-medium">{formatModelLabel(model)}</p>
-                                    <p className="truncate text-[10px] text-muted">{model}</p>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="truncate font-medium">{formatModelLabel(model)}</p>
+                                      {isFreeModel(model, modelConfig?.provider as Provider) && (
+                                        <span className="shrink-0 rounded-[4px] bg-emerald-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/20 group-hover:bg-emerald-500/20">
+                                          Free
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="truncate text-[10px] text-muted mt-0.5">{model}</p>
                                   </button>
                                 ))}
                               </div>
