@@ -44,10 +44,27 @@ style: ${userContext?.style || ""}
 tone: ${userContext?.tone || ""}
 constraints: ${(userContext?.constraints || []).join(", ") || "none"}`;
 
+    const stepTypeGuidance = (() => {
+      switch (step.stepType) {
+        case "research":
+          return "Provide concise findings with a short sources list placeholder.";
+        case "code":
+          return "Return patch-ready code or explicit file-level instructions.";
+        case "write":
+          return "Write polished prose with clear structure and headings if needed.";
+        case "plan":
+          return "Return an ordered checklist with dependencies.";
+        default:
+          return "Return structured analysis with clear conclusions.";
+      }
+    })();
+
     const taskBlock = `TASK:
 Execute this workflow step and return only the direct output for this step.
 role: ${step.role}
 task: ${step.task}
+step_type: ${step.stepType || "analysis"}
+guidance: ${stepTypeGuidance}
 output_format: ${step.outputFormat || "markdown"}
 must_include: ${(step.mustInclude || []).join("; ") || "none"}
 must_avoid: ${(step.mustAvoid || []).join("; ") || "none"}
@@ -86,6 +103,27 @@ ${JSON.stringify(executionSchema.schema)}`
           JSON.parse(output);
         } catch {
           warnings.push("Output is not valid JSON.");
+        }
+      }
+
+      if (step.stepType === "research") {
+        if (!/sources?/i.test(output)) {
+          warnings.push("Research output should include a Sources section.");
+        }
+      }
+      if (step.stepType === "code") {
+        if (!/(file|path|diff)/i.test(output)) {
+          warnings.push("Code output should reference file paths or a diff.");
+        }
+      }
+      if (step.stepType === "plan") {
+        if (!/^\s*\d+\./m.test(output)) {
+          warnings.push("Plan output should be an ordered list.");
+        }
+      }
+      if (step.stepType === "write") {
+        if (output.length < 200) {
+          warnings.push("Write output seems too short; expand the content.");
         }
       }
       return warnings;

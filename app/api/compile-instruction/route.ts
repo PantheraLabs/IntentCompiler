@@ -9,6 +9,7 @@ type CompileInstructionRequest = GenerateInstructionRequest & {
   context: UserContext;
   modelConfig?: Partial<ModelConfig>;
 };
+type CompileInstructionWithGate = CompileInstructionRequest & { enforceQualityGate?: boolean };
 
 async function callJsonTask<T>({
   modelConfig,
@@ -40,7 +41,7 @@ ${JSON.stringify(schema)}`
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as CompileInstructionRequest;
+    const body = (await req.json()) as CompileInstructionWithGate;
     if (!body.intent?.trim()) {
       return NextResponse.json({ error: "Intent is required." }, { status: 400 });
     }
@@ -73,19 +74,23 @@ export async function POST(req: Request) {
       schema: behaviorSchema
     });
 
-    let markdown = createInstructionMarkdown(body.target, refinement, structuredContext, behavior);
+    const originalMarkdown = createInstructionMarkdown(body.target, refinement, structuredContext, behavior);
+    let markdown = originalMarkdown;
     let quality = await evaluateInstructionMarkdown({
       markdown,
       target: body.target,
       projectRoot: process.cwd()
     });
 
-    const improved = await improveInstructionMarkdown({
-      markdown,
-      target: body.target,
-      modelConfig: refinementConfig,
-      quality
-    });
+    const shouldImprove = body.enforceQualityGate !== false;
+    const improved = shouldImprove
+      ? await improveInstructionMarkdown({
+          markdown,
+          target: body.target,
+          modelConfig: refinementConfig,
+          quality
+        })
+      : markdown;
 
     if (improved !== markdown) {
       markdown = improved;
@@ -101,6 +106,8 @@ export async function POST(req: Request) {
       structuredContext,
       behavior,
       markdown,
+      originalMarkdown,
+      improvedMarkdown: improved !== originalMarkdown ? improved : "",
       quality,
       modelConfig: refinementConfig
     });

@@ -6,6 +6,7 @@ import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { BehaviorDefinition, GenerateInstructionRequest, IntentRefinement, ModelConfig, StructuredContext, UserContext } from "@/lib/types";
 
 type RequestBody = GenerateInstructionRequest & { context: UserContext };
+type RequestWithQualityGate = RequestBody & { enforceQualityGate?: boolean };
 
 async function callJsonTask<T>({
   modelConfig,
@@ -31,7 +32,7 @@ async function callJsonTask<T>({
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as RequestBody;
+    const body = (await req.json()) as RequestWithQualityGate;
     const { intent, context, target, modelConfig } = body;
 
     if (!intent || !context) {
@@ -66,19 +67,23 @@ export async function POST(req: Request) {
       schema: behaviorSchema
     });
 
-    let markdown = createInstructionMarkdown(target, refinement, structuredContext, behavior);
+    const originalMarkdown = createInstructionMarkdown(target, refinement, structuredContext, behavior);
+    let markdown = originalMarkdown;
     let quality = await evaluateInstructionMarkdown({
       markdown,
       target,
       projectRoot: process.cwd()
     });
 
-    const improved = await improveInstructionMarkdown({
-      markdown,
-      target,
-      modelConfig: refinementConfig,
-      quality
-    });
+    const shouldImprove = body.enforceQualityGate !== false;
+    const improved = shouldImprove
+      ? await improveInstructionMarkdown({
+          markdown,
+          target,
+          modelConfig: refinementConfig,
+          quality
+        })
+      : markdown;
 
     if (improved !== markdown) {
       markdown = improved;
@@ -89,7 +94,16 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ markdown, refinement, structuredContext, behavior, quality, modelConfig: refinementConfig });
+    return NextResponse.json({
+      markdown,
+      originalMarkdown,
+      improvedMarkdown: improved !== originalMarkdown ? improved : "",
+      refinement,
+      structuredContext,
+      behavior,
+      quality,
+      modelConfig: refinementConfig
+    });
   } catch (error) {
     console.error("Instruction Generation Error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

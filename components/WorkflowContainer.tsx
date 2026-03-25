@@ -17,7 +17,7 @@ type WorkflowContainerProps = {
 
 type ExecuteResponse = { output?: string; error?: string };
 type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
-type InstructionQuality = {
+  type InstructionQuality = {
   score: number;
   dimensions: {
     correctness: number;
@@ -33,7 +33,13 @@ type InstructionQuality = {
     message: string;
   }>;
 };
-type GenerateInstructionResponse = { markdown?: string; quality?: InstructionQuality; error?: string };
+  type GenerateInstructionResponse = {
+    markdown?: string;
+    originalMarkdown?: string;
+    improvedMarkdown?: string;
+    quality?: InstructionQuality;
+    error?: string;
+  };
 
 export default function WorkflowContainer({ intent, context, initialSteps, modelConfig }: WorkflowContainerProps) {
   const [steps, setSteps] = useState<WorkflowStep[]>(
@@ -41,6 +47,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
       ...step,
       status: step.status ?? "idle",
       output: step.output ?? "",
+      stepType: step.stepType ?? "analysis",
       outputFormat: step.outputFormat ?? "markdown",
       mustInclude: step.mustInclude ?? [],
       mustAvoid: step.mustAvoid ?? [],
@@ -166,6 +173,15 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   const updateCriteria = (index: number, patch: Partial<WorkflowStep>) =>
     patchStep(index, { ...patch, status: "idle" });
 
+  const skipStep = (index: number) => {
+    patchStep(index, { status: "success", output: "[skipped]" });
+  };
+
+  const rerunStep = (index: number) => {
+    patchStep(index, { status: "idle", output: "", error: "", warnings: [] });
+    runStep(index);
+  };
+
   // Instruction Generator State
   const [instructionIntent, setInstructionIntent] = useState(intent);
   const [instructionContext, setInstructionContext] = useState({
@@ -177,6 +193,9 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   const [targetFile, setTargetFile] = useState<InstructionTarget>("claude");
   const [generatedMarkdown, setGeneratedMarkdown] = useState("");
   const [generatedQuality, setGeneratedQuality] = useState<InstructionQuality | null>(null);
+  const [originalMarkdown, setOriginalMarkdown] = useState("");
+  const [improvedMarkdown, setImprovedMarkdown] = useState("");
+  const [qualityGate, setQualityGate] = useState(true);
   const [generating, setGenerating] = useState(false);
   const formatOptions: Array<{ value: InstructionTarget; label: string }> = [
     { value: "claude", label: "CLAUDE.md" },
@@ -197,12 +216,15 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
           intent: instructionIntent,
           context: instructionContext,
           target: targetFile,
-          modelConfig
+          modelConfig,
+          enforceQualityGate: qualityGate
         })
       });
       const data = (await res.json()) as GenerateInstructionResponse;
       if (!res.ok || !data.markdown) throw new Error(data.error || "Generation failed.");
       setGeneratedMarkdown(data.markdown);
+      setOriginalMarkdown(data.originalMarkdown ?? "");
+      setImprovedMarkdown(data.improvedMarkdown ?? "");
       setGeneratedQuality(data.quality ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed.");
@@ -262,6 +284,8 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
             total={steps.length}
             isCurrent={currentStepIndex === index}
             onRun={() => runStep(index)}
+            onRerun={() => rerunStep(index)}
+            onSkip={() => skipStep(index)}
             onDelete={() => deleteStep(index)}
             onMoveUp={() => moveStep(index, -1)}
             onMoveDown={() => moveStep(index, 1)}
@@ -290,6 +314,24 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
               />
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surfaceAlt/40 px-4 py-3">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">Quality Gate</span>
+          <button
+            type="button"
+            onClick={() => setQualityGate((prev) => !prev)}
+            className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider transition ${
+              qualityGate
+                ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200"
+                : "border-border text-muted"
+            }`}
+          >
+            {qualityGate ? "On" : "Off"}
+          </button>
+          <span className="text-[10px] text-muted">
+            When on, auto‑improve low scores before showing output.
+          </span>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -370,11 +412,36 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
               <div className="mb-4 rounded-lg border border-accent/40 bg-accent/5 p-3">
                 <p className="text-xs uppercase tracking-[0.12em] text-muted">Quality Score</p>
                 <p className="mt-1 text-sm font-semibold text-accent">{generatedQuality.score}/100</p>
+                <div className="mt-2 grid gap-1 text-[11px] text-muted md:grid-cols-3">
+                  <span>Correctness: {generatedQuality.dimensions.correctness.toFixed(1)}/5</span>
+                  <span>Specificity: {generatedQuality.dimensions.specificity.toFixed(1)}/5</span>
+                  <span>Executability: {generatedQuality.dimensions.executability.toFixed(1)}/5</span>
+                  <span>Safety: {generatedQuality.dimensions.safety.toFixed(1)}/5</span>
+                  <span>Compatibility: {generatedQuality.dimensions.compatibility.toFixed(1)}/5</span>
+                  <span>Brevity: {generatedQuality.dimensions.brevity.toFixed(1)}/5</span>
+                </div>
               </div>
             ) : null}
-            <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-black/20 p-5 max-h-[400px] overflow-auto">
-              <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
-            </div>
+            {originalMarkdown && improvedMarkdown && originalMarkdown !== improvedMarkdown ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-border bg-black/20 p-4">
+                  <p className="mb-2 text-xs uppercase tracking-[0.12em] text-muted">Original</p>
+                  <div className="prose prose-invert prose-sm max-w-none max-h-[360px] overflow-auto">
+                    <ReactMarkdown>{originalMarkdown}</ReactMarkdown>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-4">
+                  <p className="mb-2 text-xs uppercase tracking-[0.12em] text-emerald-200">Improved</p>
+                  <div className="prose prose-invert prose-sm max-w-none max-h-[360px] overflow-auto">
+                    <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-black/20 p-5 max-h-[400px] overflow-auto">
+                <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+              </div>
+            )}
           </div>
         )}
       </section>

@@ -177,7 +177,7 @@ function isLegacyModel(model: string) {
 }
 
 function isRecommendedModel(model: string) {
-  return /gpt-4\.1|gpt-4o|llama-3\.3|llama-3\.1|claude-3\.5|claude-4|gemini-2|mixtral|qwen|grok/i.test(model);
+  return /gpt-4\.1|gpt-4o|llama-3\.3|llama-3\.1|claude-3\.5|claude-4|gemini-2|mixtral|qwen|grok|phi|gemma|mistral|deepseek/i.test(model);
 }
 
 function formatModelLabel(model: string) {
@@ -199,18 +199,61 @@ function getModelFamily(model: string) {
   if (normalized.includes("gemini")) return "Gemini";
   if (normalized.includes("qwen")) return "Qwen";
   if (normalized.includes("grok")) return "Grok";
+  if (normalized.includes("phi")) return "Phi";
+  if (normalized.includes("gemma")) return "Gemma";
+  if (normalized.includes("mistral")) return "Mistral";
+  if (normalized.includes("deepseek")) return "DeepSeek";
   return "Other";
 }
+
+const VIBE_GALLERY = [
+  {
+    name: "Shadcn Vibe",
+    description: "Modern, clean, and interactive",
+    context: { project: "Next.js App", tech_stack: "Next.js 15, Tailwind CSS, Shadcn/UI, Lucide", style: "Neon Minimalist", constraints: ["Strict TypeScript", "Accessibility First"] }
+  },
+  {
+    name: "Python FastVibe",
+    description: "FastAPI + Pydantic performance",
+    context: { project: "Python Backend", tech_stack: "FastAPI, Pydantic v2, PostgreSQL, Redis", style: "Concise & Scalable", constraints: ["Async First", "Type Hinting"] }
+  },
+  {
+    name: "The T3 Vibe",
+    description: "Type-safe fullstack speed",
+    context: { project: "T3 Stack App", tech_stack: "Next.js, tRPC, Prisma, Tailwind", style: "Safety First", constraints: ["Zod Validation", "End-to-end Types"] }
+  }
+];
 
 export default function ContextForm() {
   const router = useRouter();
   const [intent, setIntent] = useState("");
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [viewMode, setViewMode] = useState<"build" | "vibe">("build");
   const [context, setContext] = useState<UserContext>(initialContext);
   const [constraintsInput, setConstraintsInput] = useState("");
   const [models, setModels] = useState<Array<{ provider: Provider; models: string[] }>>([]);
   const [modelConfig, setModelConfig] = useState<ModelConfig | null>(null);
   const [loadingModels, setLoadingModels] = useState(true);
+
+  // Auto-scan project on mount
+  useEffect(() => {
+    async function scan() {
+      try {
+        const res = await fetch("/api/scan-project");
+        if (res.ok) {
+          const data = await res.json();
+          setContext((prev) => ({
+            ...prev,
+            project: data.name || prev.project,
+            tech_stack: data.techStack || prev.techStack
+          }));
+        }
+      } catch (err) {
+        console.error("Project scan failed:", err);
+      }
+    }
+    scan();
+  }, []);
   const [compiling, setCompiling] = useState(false);
   const [compilingInstruction, setCompilingInstruction] = useState(false);
   const [fetchingSuggestions, setFetchingSuggestions] = useState(false);

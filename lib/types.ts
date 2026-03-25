@@ -7,7 +7,7 @@ export type UserContext = {
   constraints: string[];
 };
 
-export type Provider = "openai" | "groq" | "aicc";
+export type Provider = "openai" | "groq" | "aicc" | "ollama";
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
 
@@ -20,6 +20,7 @@ export type WorkflowStep = {
   id: number;
   role: string;
   task: string;
+  stepType?: "research" | "write" | "code" | "analysis" | "plan";
   status?: ExecutionStatus;
   output?: string;
   error?: string;

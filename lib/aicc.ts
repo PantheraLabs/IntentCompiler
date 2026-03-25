@@ -9,11 +9,13 @@ export type AICCMessage = {
 const MODEL_OPTIONS: Record<Provider, string[]> = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-mini"],
   groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
-  aicc: ["anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-70b", "meta-llama/llama-3.1-8b"]
+  aicc: ["anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-70b", "meta-llama/llama-3.1-8b"],
+  ollama: ["llama3", "mistral", "phi3"] // Fallback if fetch fails
 };
 
 let aiccModelCache: { models: string[]; expiresAt: number } | null = null;
 let groqModelCache: { models: string[]; expiresAt: number } | null = null;
+let ollamaModelCache: { models: string[]; expiresAt: number } | null = null;
 
 function isTextFirstModel(model: string) {
   const id = model.toLowerCase();
@@ -41,12 +43,13 @@ function filterTextModels(models: string[]) {
 function hasProviderKey(provider: Provider) {
   if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
   if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
+  if (provider === "ollama") return true; // Local provider, assume reachable or fail gracefully
   return Boolean(process.env.AICC_API_KEY);
 }
 
 export function getAvailableProviders(): Provider[] {
-  // Cost-priority order (cheaper first): AICC -> Groq -> OpenAI.
-  const priority: Provider[] = ["aicc", "groq", "openai"];
+  // Cost-priority order (cheaper first): Ollama -> AICC -> Groq -> OpenAI.
+  const priority: Provider[] = ["ollama", "aicc", "groq", "openai"];
   return priority.filter((provider) => hasProviderKey(provider));
 }
 
@@ -103,29 +106,52 @@ async function fetchGroqModels() {
   if (!process.env.GROQ_API_KEY) {
     return MODEL_OPTIONS.groq;
   }
-
   if (groqModelCache && Date.now() < groqModelCache.expiresAt) {
     return groqModelCache.models;
   }
-
   try {
     const client = new OpenAI({
       apiKey: process.env.GROQ_API_KEY,
       baseURL: "https://api.groq.com/openai/v1"
     });
-
     const response = await client.models.list();
     const models = response.data.map((m) => m.id);
     const filtered = filterTextModels(models);
     const resolved = filtered.length ? filtered : MODEL_OPTIONS.groq;
-
     groqModelCache = {
       models: resolved,
-      expiresAt: Date.now() + 10 * 60 * 1000 // 10 min cache
+      expiresAt: Date.now() + 10 * 60 * 1000
     };
     return resolved;
   } catch {
     return MODEL_OPTIONS.groq;
+  }
+}
+
+async function fetchOllamaModels() {
+  if (ollamaModelCache && Date.now() < ollamaModelCache.expiresAt) {
+    return ollamaModelCache.models;
+  }
+  const host = process.env.OLLAMA_HOST || "http://localhost:11434";
+  try {
+    const response = await fetch(`${host}/api/tags`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(2000)
+    });
+    if (!response.ok) return MODEL_OPTIONS.ollama;
+    const payload = (await response.json()) as { models?: Array<{ name?: string }> };
+    const models = (payload.models || [])
+      .map((m) => m.name?.trim())
+      .filter((name): name is string => Boolean(name));
+    const filtered = filterTextModels(models);
+    const resolved = filtered.length ? filtered : MODEL_OPTIONS.ollama;
+    ollamaModelCache = {
+      models: resolved,
+      expiresAt: Date.now() + 2 * 60 * 1000 // 2 min cache for local
+    };
+    return resolved;
+  } catch {
+    return MODEL_OPTIONS.ollama;
   }
 }
 
@@ -135,6 +161,9 @@ export async function getModelsForProvider(provider: Provider) {
   }
   if (provider === "groq") {
     return fetchGroqModels();
+  }
+  if (provider === "ollama") {
+    return fetchOllamaModels();
   }
   return filterTextModels(MODEL_OPTIONS[provider]);
 }
@@ -148,7 +177,7 @@ export async function getUniqueModelsByProvider(providers: Provider[]) {
     }))
   );
   return entries.map(({ provider, models }) => {
-    const uniqueModels = models.filter((model) => {
+    const uniqueModels = models.filter((model: string) => {
       const key = model.trim().toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
@@ -228,6 +257,36 @@ export async function callAICC(messages: AICCMessage[], config: string | Partial
       model: resolved.model,
       messages
     });
+  }
+
+  if (resolved.provider === "ollama") {
+    const host = process.env.OLLAMA_HOST || "http://localhost:11434";
+    const response = await fetch(`${host}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: resolved.model,
+        messages,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Ollama request failed (${response.status}): ${errorBody}`);
+    }
+
+    const data = await response.json();
+    // Normalize Ollama response to match OpenAI shape for extractAiccContent
+    return {
+      choices: [
+        {
+          message: {
+            content: data.message?.content || ""
+          }
+        }
+      ]
+    };
   }
 
   if (!process.env.OPENAI_API_KEY) {

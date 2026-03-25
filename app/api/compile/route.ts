@@ -30,6 +30,7 @@ const stepsSchema = {
             role: { type: "string" },
             task: { type: "string" },
             status: { type: "string", enum: ["idle", "running", "success", "error"] },
+            stepType: { type: "string" },
             outputFormat: { type: "string" },
             mustInclude: { type: "array", items: { type: "string" } },
             mustAvoid: { type: "array", items: { type: "string" } },
@@ -63,7 +64,7 @@ constraints: ${(context.constraints || []).join(", ")}`;
 
     const task = `TASK:
 Generate a 3-5 step executable workflow from the user intent and context.
-Return JSON with { "steps": [{ "id": number, "role": string, "task": string, "status": "idle", "outputFormat": "markdown|bullets|json|table|plain", "mustInclude": string[], "mustAvoid": string[], "acceptanceTests": string[], "qualityBar": string }] }.
+Return JSON with { "steps": [{ "id": number, "role": string, "task": string, "status": "idle", "stepType": "research|write|code|analysis|plan", "outputFormat": "markdown|bullets|json|table|plain", "mustInclude": string[], "mustAvoid": string[], "acceptanceTests": string[], "qualityBar": string }] }.
 Ensure steps are in logical sequence and non-redundant.
 Acceptance criteria must be concrete and testable. Keep lists short (1-4 items).
 
@@ -77,6 +78,7 @@ ${intent}`;
         task: string;
         status?: "idle" | "running" | "success" | "error";
         outputFormat?: string;
+        stepType?: string;
         mustInclude?: string[];
         mustAvoid?: string[];
         acceptanceTests?: string[];
@@ -103,6 +105,7 @@ ${JSON.stringify(stepsSchema.schema)}`
       role: String(step.role || "operator"),
       task: String(step.task || ""),
       status: "idle" as const,
+      stepType: step.stepType || "analysis",
       outputFormat: step.outputFormat || "markdown",
       mustInclude: Array.isArray(step.mustInclude) ? step.mustInclude : [],
       mustAvoid: Array.isArray(step.mustAvoid) ? step.mustAvoid : [],
