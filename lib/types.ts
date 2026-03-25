@@ -1,6 +1,7 @@
 export type UserContext = {
   project: string;
   audience: string;
+  techStack?: string;
   depth: string;
   style: string;
   tone?: string;

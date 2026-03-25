@@ -480,6 +480,26 @@ export default function ContextForm() {
           </h1>
           <p className="mt-1.5 text-sm text-muted">Reactive workflow system for intent-driven execution.</p>
         </div>
+        <div className="flex bg-surfaceAlt/30 p-1 rounded-xl border border-border/50">
+          <button
+            type="button"
+            onClick={() => setViewMode("build")}
+            className={`px-4 py-1.5 text-[10px] uppercase tracking-[0.12em] rounded-lg transition-all ${
+              viewMode === "build" ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-muted hover:text-text"
+            }`}
+          >
+            Build
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("vibe")}
+            className={`px-4 py-1.5 text-[10px] uppercase tracking-[0.12em] rounded-lg transition-all ${
+              viewMode === "vibe" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-muted hover:text-text"
+            }`}
+          >
+            Vibe
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <div className="w-32">
             <CompactDropdown
