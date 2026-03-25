@@ -7,9 +7,9 @@ export type AICCMessage = {
 };
 
 const MODEL_OPTIONS: Record<Provider, string[]> = {
-  openai: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o-mini"],
-  groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
-  aicc: ["anthropic/claude-3.5-sonnet", "mistral/mixtral-8x7b", "meta-llama/llama-3-8b"]
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-mini"],
+  groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
+  aicc: ["anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-70b", "meta-llama/llama-3.1-8b"]
 };
 
 let aiccModelCache: { models: string[]; expiresAt: number } | null = null;
@@ -168,9 +168,15 @@ export function getDefaultProvider(): Provider {
 
 export function selectModel(taskType: "complex" | "structured" | "simple", provider: Provider = getDefaultProvider()) {
   const options = MODEL_OPTIONS[provider];
+  
+  // High quality (Complex tasks: Instruction compilation)
   if (taskType === "complex") return options[0];
+  
+  // High efficiency (Structured tasks: Intent refinement)
   if (taskType === "structured") return options[1] || options[0];
-  return options[2] || options[0];
+  
+  // High speed/Low cost (Simple tasks: Field suggestions)
+  return options[2] || options[1] || options[0];
 }
 
 export function resolveModelConfig(
