@@ -3,7 +3,7 @@ import { assertAnyProviderKey, getAvailableProviders, getUniqueModelsByProvider,
 
 export async function GET() {
   try {
-    assertAnyProviderKey();
+    await assertAnyProviderKey();
   } catch {
     return NextResponse.json(
       {
@@ -14,8 +14,8 @@ export async function GET() {
     );
   }
 
-  const providers = (await getUniqueModelsByProvider(getAvailableProviders())).filter((entry) => entry.models.length > 0);
-  const fallbackConfig = resolveModelConfig(undefined, "complex");
+  const providers = (await getUniqueModelsByProvider(await getAvailableProviders())).filter((entry) => entry.models.length > 0);
+  const fallbackConfig = await resolveModelConfig(undefined, "complex");
   const firstProvider = providers[0];
   const defaultConfig = firstProvider
     ? { provider: firstProvider.provider, model: firstProvider.models[0] || fallbackConfig.model }

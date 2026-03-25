@@ -48,14 +48,29 @@ function hasProviderKey(provider: Provider) {
   return false;
 }
 
-export function getAvailableProviders(): Provider[] {
+export async function getAvailableProviders(): Promise<Provider[]> {
   // Cost-priority order (cheaper first): Ollama -> OpenRouter -> Groq -> OpenAI.
   const priority: Provider[] = ["ollama", "openrouter", "groq", "openai"];
-  return priority.filter((provider) => hasProviderKey(provider));
+  const available: Provider[] = [];
+  
+  for (const provider of priority) {
+    if (provider === "ollama") {
+      // Only include Ollama if it has models installed
+      const models = await fetchOllamaModels();
+      if (models.length > 0) {
+        available.push(provider);
+      }
+    } else if (hasProviderKey(provider)) {
+      available.push(provider);
+    }
+  }
+  
+  return available;
 }
 
-export function assertAnyProviderKey() {
-  if (!getAvailableProviders().length) {
+export async function assertAnyProviderKey() {
+  const providers = await getAvailableProviders();
+  if (!providers.length) {
     throw new Error(
       "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama."
     );
@@ -98,20 +113,19 @@ async function fetchOllamaModels() {
       cache: "no-store",
       signal: AbortSignal.timeout(2000)
     });
-    if (!response.ok) return MODEL_OPTIONS.ollama;
+    if (!response.ok) return [];
     const payload = (await response.json()) as { models?: Array<{ name?: string }> };
     const models = (payload.models || [])
       .map((m) => m.name?.trim())
       .filter((name): name is string => Boolean(name));
     const filtered = filterTextModels(models);
-    const resolved = filtered.length ? filtered : MODEL_OPTIONS.ollama;
     ollamaModelCache = {
-      models: resolved,
+      models: filtered,
       expiresAt: Date.now() + 2 * 60 * 1000 // 2 min cache for local
     };
-    return resolved;
+    return filtered;
   } catch {
-    return MODEL_OPTIONS.ollama;
+    return [];
   }
 }
 
@@ -201,16 +215,17 @@ export async function getUniqueModelsByProvider(providers: Provider[]) {
   });
 }
 
-export function getDefaultProvider(): Provider {
-  const providers = getAvailableProviders();
+export async function getDefaultProvider(): Promise<Provider> {
+  const providers = await getAvailableProviders();
   if (!providers.length) {
     throw new Error("No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama.");
   }
   return providers[0];
 }
 
-export function selectModel(taskType: "complex" | "structured" | "simple", provider: Provider = getDefaultProvider()) {
-  const options = MODEL_OPTIONS[provider];
+export async function selectModel(taskType: "complex" | "structured" | "simple", provider?: Provider) {
+  const resolvedProvider = provider || await getDefaultProvider();
+  const options = MODEL_OPTIONS[resolvedProvider];
   
   // High quality (Complex tasks: Instruction compilation)
   if (taskType === "complex") return options[0];
@@ -222,17 +237,17 @@ export function selectModel(taskType: "complex" | "structured" | "simple", provi
   return options[2] || options[1] || options[0];
 }
 
-export function resolveModelConfig(
+export async function resolveModelConfig(
   input: Partial<ModelConfig> | undefined,
   taskType: "complex" | "structured" | "simple" = "complex"
-): ModelConfig {
-  const provider = input?.provider || getDefaultProvider();
-  const model = input?.model || selectModel(taskType, provider);
+): Promise<ModelConfig> {
+  const provider = input?.provider || await getDefaultProvider();
+  const model = input?.model || await selectModel(taskType, provider);
   return { provider, model };
 }
 
 export async function callAICC(messages: AICCMessage[], config: string | Partial<ModelConfig>) {
-  const resolved = typeof config === "string" ? resolveModelConfig({ model: config }) : resolveModelConfig(config);
+  const resolved = typeof config === "string" ? await resolveModelConfig({ model: config }) : await resolveModelConfig(config);
 
   if (resolved.provider === "groq") {
     if (!process.env.GROQ_API_KEY) {

@@ -35,7 +35,7 @@ type RecommendRequest = {
 
 export async function POST(req: Request) {
   try {
-    assertAnyProviderKey();
+    await assertAnyProviderKey();
     const body = (await req.json()) as RecommendRequest;
     const { intent } = body;
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     // Determine which providers are actually configured
-    const availableProviders = getAvailableProviders();
+    const availableProviders = await getAvailableProviders();
 
     // Get actual available models per provider for context
     const modelsByProvider: Record<string, string[]> = {};
@@ -112,7 +112,10 @@ Select the best model from the catalog for this intent. Consider complexity, dom
     );
 
     // Parse JSON from response
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const content = typeof raw === 'object' && raw !== null && 'choices' in raw 
+      ? raw.choices[0]?.message?.content || ""
+      : String(raw);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error("No JSON in model response");
     }
@@ -123,10 +126,10 @@ Select the best model from the catalog for this intent. Consider complexity, dom
     console.error("LLM routing failed, falling back to heuristics:", err);
     try {
       const body = (await req.clone().json()) as RecommendRequest;
-      const availableProviders = getAvailableProviders();
+      const availableProviders = await getAvailableProviders();
       const modelsByProvider: Record<Provider, string[]> = {} as Record<Provider, string[]>;
       await Promise.all(
-        availableProviders.map(async (p) => {
+        availableProviders.map(async (p: Provider) => {
           modelsByProvider[p] = await getModelsForProvider(p);
         })
       );
