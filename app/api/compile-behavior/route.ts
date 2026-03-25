@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
 import { behaviorSchema, buildBehaviorTask, buildUserContextBlock, systemContextBlock } from "@/lib/contextCompiler";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { BehaviorDefinition, IntentRefinement, ModelConfig, StructuredContext, UserContext } from "@/lib/types";
 
 type CompileBehaviorRequest = {
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     const userContextBlock = buildUserContextBlock(body.intent, body.context);
     const task = buildBehaviorTask(body.refinement, body.structuredContext, body.target || "generic");
 
-    const response = await callAICC(
+    const parsed = await callJsonWithValidation<BehaviorDefinition>(
       [
         { role: "system", content: systemContextBlock() },
         { role: "user", content: userContextBlock },
@@ -35,10 +36,9 @@ Required JSON schema:
 ${JSON.stringify(behaviorSchema)}`
         }
       ],
+      behaviorSchema,
       modelConfig
     );
-
-    const parsed = JSON.parse(extractAiccContent(response)) as BehaviorDefinition;
     return NextResponse.json({ behavior: parsed, modelConfig });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

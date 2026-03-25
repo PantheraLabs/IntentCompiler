@@ -44,6 +44,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   const [error, setError] = useState("");
 
   const completedCount = useMemo(() => steps.filter((step) => step.status === "success").length, [steps]);
+  const hasRemaining = useMemo(() => steps.some((step) => step.status !== "success"), [steps]);
 
   const patchStep = (index: number, patch: Partial<WorkflowStep>) => {
     setSteps((prev) => prev.map((step, i) => (i === index ? { ...step, ...patch } : step)));
@@ -89,6 +90,23 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
     setRunningAll(true);
     setError("");
     for (let i = 0; i < steps.length; i += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await runStep(i);
+      } catch {
+        break;
+      }
+    }
+    setRunningAll(false);
+  };
+
+  const runRemaining = async () => {
+    const startIndex = steps.findIndex((step) => step.status !== "success");
+    if (startIndex === -1) return;
+    setRunningAll(true);
+    setError("");
+    for (let i = startIndex; i < steps.length; i += 1) {
+      if (steps[i]?.status === "success") continue;
       try {
         // eslint-disable-next-line no-await-in-loop
         await runStep(i);
@@ -202,6 +220,8 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
         totalSteps={steps.length}
         completed={completedCount}
         onRunAll={runAll}
+        onRunRemaining={runRemaining}
+        hasRemaining={hasRemaining}
         disabled={steps.length === 0}
       />
 

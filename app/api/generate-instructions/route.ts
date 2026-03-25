@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { behaviorSchema, buildBehaviorTask, buildContextTask, buildRefinementTask, buildUserContextBlock, contextSchema, createInstructionMarkdown, refinementSchema, systemContextBlock } from "@/lib/contextCompiler";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
 import { evaluateInstructionMarkdown, improveInstructionMarkdown } from "@/lib/instructionQuality";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { BehaviorDefinition, GenerateInstructionRequest, IntentRefinement, ModelConfig, StructuredContext, UserContext } from "@/lib/types";
 
 type RequestBody = GenerateInstructionRequest & { context: UserContext };
@@ -17,15 +18,15 @@ async function callJsonTask<T>({
   task: string;
   schema: object;
 }) {
-  const response = await callAICC(
+  return callJsonWithValidation<T>(
     [
       { role: "system", content: systemContextBlock() },
       { role: "user", content: userContextBlock },
       { role: "user", content: `${task}\n\nRequired JSON schema:\n${JSON.stringify(schema)}` }
     ],
+    schema,
     modelConfig
   );
-  return JSON.parse(extractAiccContent(response)) as T;
 }
 
 export async function POST(req: Request) {

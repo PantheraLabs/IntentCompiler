@@ -90,10 +90,52 @@ type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" 
 type ModelViewMode = "recommended" | "all" | "legacy";
 
 const EXAMPLE_INTENTS = [
-  "Validate a startup idea",
-  "Draft a go-to-market plan for a developer tool",
-  "Plan onboarding workflow for a SaaS app"
+  "Build a React weather app with Tailwind",
+  "Plan a SaaS onboarding workflow",
+  "Draft a GTM plan for a dev tool",
+  "Design a neo-minimalist landing page",
+  "Implement a TTT mechanism with LoRA",
+  "Create a Python script for web scraping",
+  "Architect a serverless backend on AWS",
+  "Write a technical doc for a REST API",
+  "Validate a high-frequency trading idea",
+  "Optimize PostgreSQL query performance",
+  "Build an AI-powered code reviewer",
+  "Design a dark-mode dashboard for CRM",
+  "Implement JWT auth in a Next.js app",
+  "Create a CI/CD pipeline with GitHub Actions",
+  "Develop a cross-platform mobile app in Flutter"
 ];
+
+function MarqueeCarousel({ items, onSelect }: { items: string[], onSelect: (val: string) => void }) {
+  return (
+    <div className="relative flex w-full overflow-hidden py-2 select-none pointer-events-auto">
+      <motion.div
+        animate={{ x: [0, -1000] }}
+        transition={{
+          repeat: Infinity,
+          duration: 30,
+          ease: "linear",
+          repeatType: "loop"
+        }}
+        whileHover={{ animationPlayState: "paused" } as any}
+        className="flex shrink-0 gap-4"
+      >
+        {[...items, ...items].map((item, idx) => (
+          <button
+            key={`${item}-${idx}`}
+            onClick={() => onSelect(item)}
+            className="whitespace-nowrap rounded-full border border-border bg-surfaceAlt/50 px-4 py-1.5 text-xs text-muted transition-all hover:border-accent hover:text-accent hover:bg-accent/5"
+          >
+            {item}
+          </button>
+        ))}
+      </motion.div>
+      <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-surface to-transparent pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-surface to-transparent pointer-events-none" />
+    </div>
+  );
+}
 
 const initialContext: UserContext = {
   project: "",
@@ -396,7 +438,7 @@ export default function ContextForm() {
           <p className="mt-1.5 text-sm text-muted">Reactive workflow system for intent-driven execution.</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-36">
+          <div className="w-32">
             <CompactDropdown
               placeholder="Presets"
               value=""
@@ -407,7 +449,7 @@ export default function ContextForm() {
                 }
               }}
               options={PRESETS.map(p => ({ value: p.value, label: p.label }))}
-              buttonClassName="py-1.5 text-[10px] uppercase tracking-wider"
+              buttonClassName="!py-1.5 !text-[10px] uppercase tracking-[0.12em]"
             />
           </div>
           <motion.button
@@ -416,7 +458,7 @@ export default function ContextForm() {
             whileTap="tap"
             type="button"
             onClick={() => setAdvancedMode((prev) => !prev)}
-            className="rounded-md border border-border bg-surfaceAlt px-3 py-1.5 text-xs uppercase tracking-[0.12em] text-text transition-colors hover:border-accent whitespace-nowrap"
+            className="rounded-lg border border-border bg-surfaceAlt px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text transition-colors hover:border-accent whitespace-nowrap"
           >
             {advancedMode ? "Advanced On" : "Advanced Off"}
           </motion.button>
@@ -458,21 +500,9 @@ export default function ContextForm() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-2 flex flex-wrap gap-2 overflow-hidden"
+                className="mt-2"
               >
-                {EXAMPLE_INTENTS.map((example) => (
-                  <motion.button
-                    key={example}
-                    variants={buttonVariants}
-                    whileHover="hover"
-                    whileTap="tap"
-                    type="button"
-                    onClick={() => setIntent(example)}
-                    className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:border-accent hover:text-accent"
-                  >
-                    {example}
-                  </motion.button>
-                ))}
+                <MarqueeCarousel items={EXAMPLE_INTENTS} onSelect={setIntent} />
               </motion.div>
             )}
           </AnimatePresence>

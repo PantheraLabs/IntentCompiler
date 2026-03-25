@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
 import { buildRefinementTask, buildUserContextBlock, refinementSchema, systemContextBlock } from "@/lib/contextCompiler";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { IntentRefinement, ModelConfig, UserContext } from "@/lib/types";
 
 type RefineIntentRequest = {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     const userContextBlock = buildUserContextBlock(body.intent, body.context);
     const task = buildRefinementTask(body.intent);
 
-    const response = await callAICC(
+    const parsed = await callJsonWithValidation<IntentRefinement>(
       [
         { role: "system", content: systemContextBlock() },
         { role: "user", content: userContextBlock },
@@ -32,10 +33,9 @@ Required JSON schema:
 ${JSON.stringify(refinementSchema)}`
         }
       ],
+      refinementSchema,
       modelConfig
     );
-
-    const parsed = JSON.parse(extractAiccContent(response)) as IntentRefinement;
     return NextResponse.json({ refinement: parsed, modelConfig });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

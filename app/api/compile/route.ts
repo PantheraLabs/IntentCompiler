@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import type { ModelConfig, UserContext } from "@/lib/types";
 
@@ -62,7 +63,9 @@ Ensure steps are in logical sequence and non-redundant.
 INTENT:
 ${intent}`;
 
-    const response = await callAICC(
+    const parsed = await callJsonWithValidation<{
+      steps: Array<{ id: number; role: string; task: string; status?: "idle" | "running" | "success" | "error" }>;
+    }>(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContext },
@@ -74,13 +77,9 @@ Required JSON schema:
 ${JSON.stringify(stepsSchema.schema)}`
         }
       ],
+      stepsSchema.schema,
       modelConfig
     );
-
-    const raw = extractAiccContent(response);
-    const parsed = JSON.parse(raw) as {
-      steps: Array<{ id: number; role: string; task: string; status?: "idle" | "running" | "success" | "error" }>;
-    };
 
     const normalized = parsed.steps.slice(0, 5).map((step, index) => ({
       id: index + 1,

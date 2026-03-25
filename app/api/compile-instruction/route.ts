@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { behaviorSchema, buildBehaviorTask, buildContextTask, buildRefinementTask, buildUserContextBlock, contextSchema, createInstructionMarkdown, refinementSchema, systemContextBlock } from "@/lib/contextCompiler";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
 import { evaluateInstructionMarkdown, improveInstructionMarkdown } from "@/lib/instructionQuality";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { BehaviorDefinition, GenerateInstructionRequest, IntentRefinement, ModelConfig, StructuredContext, UserContext } from "@/lib/types";
 
 type CompileInstructionRequest = GenerateInstructionRequest & {
@@ -20,7 +21,7 @@ async function callJsonTask<T>({
   task: string;
   schema: object;
 }) {
-  const response = await callAICC(
+  return callJsonWithValidation<T>(
     [
       { role: "system", content: systemContextBlock() },
       { role: "user", content: userContextBlock },
@@ -32,15 +33,9 @@ Required JSON schema:
 ${JSON.stringify(schema)}`
       }
     ],
+    schema,
     modelConfig
   );
-  const raw = extractAiccContent(response);
-  try {
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    console.error(`[callJsonTask] JSON parse failed. Raw content: ${raw}`);
-    throw new Error(`Failed to parse LLM response as JSON: ${err instanceof Error ? err.message : "unknown"}`);
-  }
 }
 
 export async function POST(req: Request) {

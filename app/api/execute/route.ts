@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";
 
@@ -49,7 +50,7 @@ task: ${step.task}
 Previous outputs:
 ${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n") : "None"}`;
 
-    const response = await callAICC(
+    const parsed = await callJsonWithValidation<{ output: string }>(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContextBlock },
@@ -61,10 +62,9 @@ Required JSON schema:
 ${JSON.stringify(executionSchema.schema)}`
         }
       ],
+      executionSchema.schema,
       modelConfig
     );
-
-    const parsed = JSON.parse(extractAiccContent(response)) as { output: string };
     return NextResponse.json({ output: parsed.output || "" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

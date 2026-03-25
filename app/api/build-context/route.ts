@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
 import { buildContextTask, buildUserContextBlock, contextSchema, systemContextBlock } from "@/lib/contextCompiler";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { IntentRefinement, ModelConfig, StructuredContext, UserContext } from "@/lib/types";
 
 type BuildContextRequest = {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     const userContextBlock = buildUserContextBlock(body.intent, body.context);
     const task = buildContextTask(body.refinement, body.context);
 
-    const response = await callAICC(
+    const parsed = await callJsonWithValidation<StructuredContext>(
       [
         { role: "system", content: systemContextBlock() },
         { role: "user", content: userContextBlock },
@@ -33,10 +34,9 @@ Required JSON schema:
 ${JSON.stringify(contextSchema)}`
         }
       ],
+      contextSchema,
       modelConfig
     );
-
-    const parsed = JSON.parse(extractAiccContent(response)) as StructuredContext;
     return NextResponse.json({ structuredContext: parsed, modelConfig });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { callAICC, extractAiccContent, resolveModelConfig } from "@/lib/aicc";
+import { resolveModelConfig } from "@/lib/aicc";
 import { buildSuggestionTask, suggestionSchema, systemContextBlock } from "@/lib/contextCompiler";
+import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { ModelConfig } from "@/lib/types";
 
 type SuggestRequest = {
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     const modelConfig = resolveModelConfig(body.modelConfig, "simple");
     const task = buildSuggestionTask(body.intent);
 
-    const response = await callAICC(
+    const parsed = await callJsonWithValidation(
       [
         { role: "system", content: systemContextBlock() },
         {
@@ -29,10 +30,9 @@ Required JSON format:
 ${JSON.stringify(suggestionSchema)}`
         }
       ],
+      suggestionSchema,
       modelConfig
     );
-
-    const parsed = JSON.parse(extractAiccContent(response));
     return NextResponse.json({ suggestions: parsed });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
