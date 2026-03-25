@@ -12,6 +12,7 @@ type StepCardProps = {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onTaskChange: (value: string) => void;
+  onCriteriaChange: (patch: Partial<WorkflowStep>) => void;
 };
 
 const statusClass: Record<NonNullable<WorkflowStep["status"]>, string> = {
@@ -30,7 +31,8 @@ export default function StepCard({
   onDelete,
   onMoveUp,
   onMoveDown,
-  onTaskChange
+  onTaskChange,
+  onCriteriaChange
 }: StepCardProps) {
   const status = step.status ?? "idle";
   const showOutput = status !== "idle" || Boolean(step.output);
@@ -68,6 +70,59 @@ export default function StepCard({
         rows={3}
         className="w-full resize-y rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
       />
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Output Format</label>
+          <select
+            value={step.outputFormat || "markdown"}
+            onChange={(e) => onCriteriaChange({ outputFormat: e.target.value as WorkflowStep["outputFormat"] })}
+            className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+          >
+            <option value="markdown">Markdown</option>
+            <option value="bullets">Bullets</option>
+            <option value="json">JSON</option>
+            <option value="table">Table</option>
+            <option value="plain">Plain</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Quality Bar</label>
+          <input
+            value={step.qualityBar || ""}
+            onChange={(e) => onCriteriaChange({ qualityBar: e.target.value })}
+            placeholder="Short rubric sentence"
+            className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Must Include</label>
+          <textarea
+            value={(step.mustInclude || []).join("\n")}
+            onChange={(e) => onCriteriaChange({ mustInclude: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) })}
+            rows={3}
+            className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Must Avoid</label>
+          <textarea
+            value={(step.mustAvoid || []).join("\n")}
+            onChange={(e) => onCriteriaChange({ mustAvoid: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) })}
+            rows={3}
+            className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Acceptance Tests</label>
+          <textarea
+            value={(step.acceptanceTests || []).join("\n")}
+            onChange={(e) => onCriteriaChange({ acceptanceTests: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) })}
+            rows={2}
+            className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+          />
+        </div>
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -109,6 +164,30 @@ export default function StepCard({
           <div className="rounded-lg border border-border/80 bg-black/20 p-3 text-sm text-text">
             {status === "running" ? <div className="h-16 animate-pulse rounded bg-white/5" /> : step.output || ""}
           </div>
+        </div>
+      ) : null}
+
+      {step.warnings && step.warnings.length > 0 ? (
+        <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+          <p className="mb-1 font-semibold uppercase tracking-[0.12em]">Acceptance Warnings</p>
+          <ul className="space-y-1">
+            {step.warnings.map((warning, idx) => (
+              <li key={`${warning}-${idx}`}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {step.logs && step.logs.length > 0 ? (
+        <div className="mt-3 rounded-lg border border-border/60 bg-black/10 p-2 text-xs text-muted">
+          <p className="mb-1 font-semibold uppercase tracking-[0.12em]">Execution Log</p>
+          <ul className="space-y-1">
+            {step.logs.map((log) => (
+              <li key={`${log.timestamp}-${log.attempt}`}>
+                Attempt {log.attempt} · {new Date(log.timestamp).toLocaleTimeString()} · {log.warnings.length} warnings
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

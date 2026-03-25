@@ -24,6 +24,8 @@ const executionSchema = {
   strict: true
 } as const;
 
+type ExecuteResponse = { output?: string; warnings?: string[]; attempts?: number; error?: string };
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ExecuteRequest;
@@ -46,26 +48,67 @@ constraints: ${(userContext?.constraints || []).join(", ") || "none"}`;
 Execute this workflow step and return only the direct output for this step.
 role: ${step.role}
 task: ${step.task}
+output_format: ${step.outputFormat || "markdown"}
+must_include: ${(step.mustInclude || []).join("; ") || "none"}
+must_avoid: ${(step.mustAvoid || []).join("; ") || "none"}
+acceptance_tests: ${(step.acceptanceTests || []).join("; ") || "none"}
+quality_bar: ${step.qualityBar || "none"}
 
 Previous outputs:
 ${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n") : "None"}`;
 
-    const parsed = await callJsonWithValidation<{ output: string }>(
-      [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userContextBlock },
-        {
-          role: "user",
-          content: `${taskBlock}
+    const baseMessages = [
+      { role: "system" as const, content: SYSTEM_PROMPT },
+      { role: "user" as const, content: userContextBlock },
+      {
+        role: "user" as const,
+        content: `${taskBlock}
 
 Required JSON schema:
 ${JSON.stringify(executionSchema.schema)}`
+      }
+    ];
+
+    const checkOutput = (output: string) => {
+      const warnings: string[] = [];
+      const normalized = output.toLowerCase();
+
+      if (step.mustInclude?.length) {
+        const missing = step.mustInclude.filter((item) => !normalized.includes(item.toLowerCase()));
+        if (missing.length) warnings.push(`Missing required items: ${missing.join(", ")}`);
+      }
+      if (step.mustAvoid?.length) {
+        const present = step.mustAvoid.filter((item) => normalized.includes(item.toLowerCase()));
+        if (present.length) warnings.push(`Contains forbidden items: ${present.join(", ")}`);
+      }
+      if (step.outputFormat === "json") {
+        try {
+          JSON.parse(output);
+        } catch {
+          warnings.push("Output is not valid JSON.");
         }
-      ],
-      executionSchema.schema,
-      modelConfig
-    );
-    return NextResponse.json({ output: parsed.output || "" });
+      }
+      return warnings;
+    };
+
+    let attempts = 0;
+    let output = "";
+    let warnings: string[] = [];
+    let messages = baseMessages;
+
+    while (attempts < 2) {
+      attempts += 1;
+      const parsed = await callJsonWithValidation<{ output: string }>(messages, executionSchema.schema, modelConfig);
+      output = parsed.output || "";
+      warnings = checkOutput(output);
+      if (!warnings.length) break;
+      messages = messages.concat({
+        role: "user",
+        content: `The output failed acceptance checks: ${warnings.join("; ")}. Revise the output to satisfy all checks. Return JSON only.`
+      });
+    }
+
+    return NextResponse.json({ output, warnings, attempts } satisfies ExecuteResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -29,7 +29,12 @@ const stepsSchema = {
             id: { type: "integer" },
             role: { type: "string" },
             task: { type: "string" },
-            status: { type: "string", enum: ["idle", "running", "success", "error"] }
+            status: { type: "string", enum: ["idle", "running", "success", "error"] },
+            outputFormat: { type: "string" },
+            mustInclude: { type: "array", items: { type: "string" } },
+            mustAvoid: { type: "array", items: { type: "string" } },
+            acceptanceTests: { type: "array", items: { type: "string" } },
+            qualityBar: { type: "string" }
           }
         }
       }
@@ -58,14 +63,25 @@ constraints: ${(context.constraints || []).join(", ")}`;
 
     const task = `TASK:
 Generate a 3-5 step executable workflow from the user intent and context.
-Return JSON with { "steps": [{ "id": number, "role": string, "task": string, "status": "idle" }] }.
+Return JSON with { "steps": [{ "id": number, "role": string, "task": string, "status": "idle", "outputFormat": "markdown|bullets|json|table|plain", "mustInclude": string[], "mustAvoid": string[], "acceptanceTests": string[], "qualityBar": string }] }.
 Ensure steps are in logical sequence and non-redundant.
+Acceptance criteria must be concrete and testable. Keep lists short (1-4 items).
 
 INTENT:
 ${intent}`;
 
     const parsed = await callJsonWithValidation<{
-      steps: Array<{ id: number; role: string; task: string; status?: "idle" | "running" | "success" | "error" }>;
+      steps: Array<{
+        id: number;
+        role: string;
+        task: string;
+        status?: "idle" | "running" | "success" | "error";
+        outputFormat?: string;
+        mustInclude?: string[];
+        mustAvoid?: string[];
+        acceptanceTests?: string[];
+        qualityBar?: string;
+      }>;
     }>(
       [
         { role: "system", content: SYSTEM_PROMPT },
@@ -86,7 +102,12 @@ ${JSON.stringify(stepsSchema.schema)}`
       id: index + 1,
       role: String(step.role || "operator"),
       task: String(step.task || ""),
-      status: "idle" as const
+      status: "idle" as const,
+      outputFormat: step.outputFormat || "markdown",
+      mustInclude: Array.isArray(step.mustInclude) ? step.mustInclude : [],
+      mustAvoid: Array.isArray(step.mustAvoid) ? step.mustAvoid : [],
+      acceptanceTests: Array.isArray(step.acceptanceTests) ? step.acceptanceTests : [],
+      qualityBar: typeof step.qualityBar === "string" ? step.qualityBar : ""
     }));
 
     if (normalized.length < 3) {

@@ -37,7 +37,17 @@ type GenerateInstructionResponse = { markdown?: string; quality?: InstructionQua
 
 export default function WorkflowContainer({ intent, context, initialSteps, modelConfig }: WorkflowContainerProps) {
   const [steps, setSteps] = useState<WorkflowStep[]>(
-    initialSteps.map((step) => ({ ...step, status: step.status ?? "idle", output: step.output ?? "" }))
+    initialSteps.map((step) => ({
+      ...step,
+      status: step.status ?? "idle",
+      output: step.output ?? "",
+      outputFormat: step.outputFormat ?? "markdown",
+      mustInclude: step.mustInclude ?? [],
+      mustAvoid: step.mustAvoid ?? [],
+      acceptanceTests: step.acceptanceTests ?? [],
+      qualityBar: step.qualityBar ?? "",
+      warnings: step.warnings ?? []
+    }))
   );
   const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
   const [runningAll, setRunningAll] = useState(false);
@@ -49,6 +59,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   const patchStep = (index: number, patch: Partial<WorkflowStep>) => {
     setSteps((prev) => prev.map((step, i) => (i === index ? { ...step, ...patch } : step)));
   };
+
 
   const runStep = async (index: number) => {
     const step = steps[index];
@@ -75,7 +86,20 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
         throw new Error(data.error || "Execution failed.");
       }
 
-      patchStep(index, { output: data.output, status: "success", error: "" });
+      const warnings = data.warnings ?? [];
+      const attemptLog = {
+        attempt: data.attempts ?? 1,
+        output: data.output,
+        warnings,
+        timestamp: new Date().toISOString()
+      };
+      patchStep(index, {
+        output: data.output,
+        status: "success",
+        error: "",
+        warnings,
+        logs: [...(step.logs ?? []), attemptLog]
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Execution failed.";
       patchStep(index, { status: "error", error: message });
@@ -139,6 +163,8 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   };
 
   const updateTask = (index: number, task: string) => patchStep(index, { task, status: "idle" });
+  const updateCriteria = (index: number, patch: Partial<WorkflowStep>) =>
+    patchStep(index, { ...patch, status: "idle" });
 
   // Instruction Generator State
   const [instructionIntent, setInstructionIntent] = useState(intent);
@@ -240,6 +266,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
             onMoveUp={() => moveStep(index, -1)}
             onMoveDown={() => moveStep(index, 1)}
             onTaskChange={(value) => updateTask(index, value)}
+            onCriteriaChange={(patch) => updateCriteria(index, patch)}
           />
         ))}
       </div>

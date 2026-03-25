@@ -23,6 +23,18 @@ export type WorkflowStep = {
   status?: ExecutionStatus;
   output?: string;
   error?: string;
+  outputFormat?: "markdown" | "bullets" | "json" | "table" | "plain";
+  mustInclude?: string[];
+  mustAvoid?: string[];
+  acceptanceTests?: string[];
+  qualityBar?: string;
+  warnings?: string[];
+  logs?: Array<{
+    attempt: number;
+    output: string;
+    warnings: string[];
+    timestamp: string;
+  }>;
 };
 
 export type StoredWorkflow = {
