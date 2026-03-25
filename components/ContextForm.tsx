@@ -389,7 +389,7 @@ export default function ContextForm() {
           </AnimatePresence>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2">
+        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 relative z-[30]">
           <div>
             <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Provider</label>
             {loadingModels ? (
@@ -500,7 +500,7 @@ export default function ContextForm() {
           </div>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-3">
+        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-3 relative z-[20]">
           <div>
             <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted font-bold">Instruction Target</label>
             <CompactDropdown
@@ -511,7 +511,7 @@ export default function ContextForm() {
           </div>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2">
+        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 relative z-[10]">
           <div>
             <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Project</label>
             <input
@@ -549,13 +549,13 @@ export default function ContextForm() {
                   transitionEnd: { overflow: "visible" }
                 }
               }}
-              className="overflow-visible"
+              className="overflow-visible relative z-[5]"
               onAnimationComplete={() => {
                 // Ensure it's visible after animation to prevent clipping of absolute children
               }}
             >
               <div className="grid gap-4 pt-2 md:grid-cols-3">
-                <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants} className="relative z-[30]">
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Depth</label>
                   <CompactDropdown
                     value={context.depth}
@@ -563,7 +563,7 @@ export default function ContextForm() {
                     options={depthOptions}
                   />
                 </motion.div>
-                <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants} className="relative z-[20]">
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Style</label>
                   <input
                     value={context.style}
@@ -571,7 +571,7 @@ export default function ContextForm() {
                     className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
                   />
                 </motion.div>
-                <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants} className="relative z-[10]">
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Tone</label>
                   <input
                     value={context.tone}
@@ -579,7 +579,7 @@ export default function ContextForm() {
                     className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
                   />
                 </motion.div>
-                <motion.div variants={itemVariants} className="md:col-span-3">
+                <motion.div variants={itemVariants} className="md:col-span-3 relative z-0">
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Constraints</label>
                   <input
                     value={constraintsInput}
@@ -595,7 +595,7 @@ export default function ContextForm() {
 
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
-        <motion.div variants={itemVariants} className="flex flex-wrap gap-2">
+        <motion.div variants={itemVariants} className="flex flex-wrap gap-2 relative z-0">
           <motion.button
             variants={buttonVariants}
             whileHover="hover"

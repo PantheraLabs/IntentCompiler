@@ -52,7 +52,7 @@ export default function CompactDropdown<T extends string>({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className={`relative ${open ? "z-[60]" : "z-0"}`}>
       <button
         type="button"
         disabled={disabled}
@@ -70,7 +70,7 @@ export default function CompactDropdown<T extends string>({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            className={`absolute z-40 mt-2 w-full rounded-xl border border-border bg-[#08101b] p-2 shadow-2xl ${menuClassName}`}
+            className={`absolute z-50 mt-2 w-full rounded-xl border border-border bg-[#08101b] p-2 shadow-2xl ${menuClassName}`}
           >
             <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
               {options.map((option) => (

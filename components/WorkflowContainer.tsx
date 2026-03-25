@@ -234,7 +234,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
           </h2>
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">Format</span>
-            <div className="w-44">
+            <div className="w-44 relative z-10">
               <CompactDropdown
               value={targetFile}
                 onChange={setTargetFile}
