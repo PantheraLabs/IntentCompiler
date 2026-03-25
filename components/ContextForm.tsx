@@ -7,7 +7,7 @@ import CompactDropdown from "@/components/ui/CompactDropdown";
 import SuggestionChips from "@/components/ui/SuggestionChips";
 import ModelRecommendationBadge from "@/components/ModelRecommendationBadge";
 import VibeLibrary from "@/components/VibeLibrary";
-import type { ModelRecommendation } from "@/lib/modelRouter";
+import { isFreeModel, type ModelRecommendation } from "@/lib/modelRouter";
 import type {
   BehaviorDefinition,
   IntentRefinement,
@@ -187,10 +187,6 @@ function isRecommendedModel(model: string) {
   );
 }
 
-function isFreeModel(model: string, provider: Provider) {
-  if (provider === "groq" || provider === "ollama") return true;
-  return /:free|^openrouter\/free/i.test(model);
-}
 
 function formatModelLabel(model: string) {
   return model
@@ -612,9 +608,9 @@ export default function ContextForm() {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="mx-auto w-full max-w-4xl rounded-[2.5rem] border border-border bg-surface/70 p-10 shadow-2xl backdrop-blur-2xl"
+      className="flex-1 max-w-4xl rounded-[2.5rem] border border-border bg-surface/70 p-12 shadow-2xl backdrop-blur-2xl"
     >
-      <motion.div variants={itemVariants} className="mb-8 flex items-start justify-between gap-4 relative z-[40]">
+      <motion.div variants={itemVariants} className="mb-4 flex items-start justify-between gap-4 relative z-[40]">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-text">
             <span className="bg-gradient-to-br from-accent via-accent to-accent/40 bg-clip-text text-transparent">
@@ -671,7 +667,7 @@ export default function ContextForm() {
         </div>
       </motion.div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {viewMode === "vibe" ? (
           <motion.div
             initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
@@ -957,7 +953,7 @@ export default function ContextForm() {
                 // Ensure it's visible after animation to prevent clipping of absolute children
               }}
             >
-              <div className="grid gap-4 pt-2 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-3">
                 <motion.div variants={itemVariants} className="relative z-[30]">
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Depth</label>
                   <CompactDropdown
@@ -1065,7 +1061,7 @@ export default function ContextForm() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="mt-5 grid gap-3"
+            className="mt-3 grid gap-3"
           >
             <div className="h-16 animate-pulse rounded-lg border border-border bg-surfaceAlt/50" />
             <div className="h-16 animate-pulse rounded-lg border border-border bg-surfaceAlt/50" />
@@ -1079,7 +1075,7 @@ export default function ContextForm() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-6 space-y-4"
+            className="mt-4 space-y-3"
           >
             <div className="rounded-lg border border-border bg-surfaceAlt/70 p-4 shadow-sm">
               <p className="mb-2 text-xs uppercase tracking-[0.12em] text-muted">Intent Refinement</p>

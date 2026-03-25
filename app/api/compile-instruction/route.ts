@@ -46,10 +46,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Intent is required." }, { status: 400 });
     }
 
-    const baseProvider = resolveModelConfig(body.modelConfig, "complex").provider;
-    const refinementConfig = resolveModelConfig({ provider: baseProvider, model: body.modelConfig?.model }, "complex");
-    const contextConfig = resolveModelConfig({ provider: baseProvider, model: body.modelConfig?.model }, "structured");
-    const behaviorConfig = resolveModelConfig({ provider: baseProvider, model: body.modelConfig?.model }, "complex");
+    const refinementConfig = await resolveModelConfig(body.modelConfig, "complex");
+    const contextConfig = await resolveModelConfig(body.modelConfig, "structured");
+    const behaviorConfig = await resolveModelConfig(body.modelConfig, "complex");
     const behaviorTarget = body.target === "claude" || body.target === "agents" ? body.target : "generic";
     const userContextBlock = buildUserContextBlock(body.intent, body.context);
 

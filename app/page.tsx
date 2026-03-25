@@ -3,14 +3,20 @@
 import { useState } from "react";
 import ContextForm from "@/components/ContextForm";
 import WelcomeIntro from "@/components/WelcomeIntro";
+import HistoryPanel from "@/components/HistoryPanel";
 
 export default function HomePage() {
   const [showIntro, setShowIntro] = useState(true);
 
   return (
-    <main className="min-h-screen px-4 py-12 md:px-6">
+    <main className="min-h-screen px-6 py-12">
       {showIntro && <WelcomeIntro onComplete={() => setShowIntro(false)} />}
-      {!showIntro && <ContextForm />}
+      {!showIntro && (
+        <div className="flex gap-12 w-full max-w-6xl mx-auto">
+          <HistoryPanel />
+          <ContextForm />
+        </div>
+      )}
     </main>
   );
 }
