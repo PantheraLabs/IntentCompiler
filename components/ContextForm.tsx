@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import CompactDropdown from "@/components/ui/CompactDropdown";
+import SuggestionChips from "@/components/ui/SuggestionChips";
 import type {
   BehaviorDefinition,
   IntentRefinement,
@@ -103,6 +104,32 @@ const initialContext: UserContext = {
   constraints: []
 };
 
+const FIELD_SUGGESTIONS = {
+  project: ["Web App", "Mobile App", "Python Script", "CLI Tool", "Documentation"],
+  audience: ["Developers", "PMs", "Investors", "End Users", "Designers"],
+  style: ["Concise", "Detailed", "Technical", "Professional", "Creative"],
+  tone: ["Neutral", "Authoritative", "Friendly", "Direct", "Academic"],
+  constraints: ["No External Deps", "Include Tests", "Strict Types", "Use Tailwind", "Performance First"]
+};
+
+const PRESETS: Array<{ label: string; value: string; context: Partial<UserContext> }> = [
+  { 
+    label: "Fullstack App", 
+    value: "fullstack", 
+    context: { project: "Next.js Fullstack App", audience: "Developers", style: "Detailed", tone: "Technical" } 
+  },
+  { 
+    label: "Python Script", 
+    value: "python", 
+    context: { project: "Python Automation Script", audience: "Developers", style: "Concise", tone: "Direct" } 
+  },
+  { 
+    label: "Technical Doc", 
+    value: "doc", 
+    context: { project: "Project Documentation", audience: "PMs & Stakeholders", style: "Professional", tone: "Formal" } 
+  }
+];
+
 function isLegacyModel(model: string) {
   return /preview|gpt-3\.5|0613|1106|0125|0314|0301|32k|instruct|vision-preview/i.test(model);
 }
@@ -144,6 +171,8 @@ export default function ContextForm() {
   const [loadingModels, setLoadingModels] = useState(true);
   const [compiling, setCompiling] = useState(false);
   const [compilingInstruction, setCompilingInstruction] = useState(false);
+  const [fetchingSuggestions, setFetchingSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState(FIELD_SUGGESTIONS);
   const [target, setTarget] = useState<InstructionTarget>("claude");
   const [instructionResult, setInstructionResult] = useState<CompileInstructionResponse | null>(null);
   const [error, setError] = useState("");
@@ -170,6 +199,31 @@ export default function ContextForm() {
     };
     fetchModels();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (!intent.trim() || intent.length < 10) return;
+      
+      setFetchingSuggestions(true);
+      try {
+        const res = await fetch("/api/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ intent, modelConfig })
+        });
+        const data = await res.json();
+        if (res.ok && data.suggestions) {
+          setSuggestions(data.suggestions);
+        }
+      } catch (err) {
+        console.error("Failed to fetch suggestions:", err);
+      } finally {
+        setFetchingSuggestions(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [intent, modelConfig]);
 
   const currentModels = useMemo(() => {
     if (!modelConfig) return [];
@@ -332,7 +386,7 @@ export default function ContextForm() {
       variants={containerVariants}
       className="mx-auto w-full max-w-4xl rounded-[2.5rem] border border-border bg-surface/70 p-10 shadow-2xl backdrop-blur-2xl"
     >
-      <motion.div variants={itemVariants} className="mb-8 flex items-start justify-between gap-4">
+      <motion.div variants={itemVariants} className="mb-8 flex items-start justify-between gap-4 relative z-[40]">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-text">
             <span className="bg-gradient-to-br from-accent via-accent to-accent/40 bg-clip-text text-transparent">
@@ -341,21 +395,56 @@ export default function ContextForm() {
           </h1>
           <p className="mt-1.5 text-sm text-muted">Reactive workflow system for intent-driven execution.</p>
         </div>
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
-          type="button"
-          onClick={() => setAdvancedMode((prev) => !prev)}
-          className="rounded-md border border-border bg-surfaceAlt px-3 py-1.5 text-xs uppercase tracking-[0.12em] text-text transition-colors hover:border-accent"
-        >
-          {advancedMode ? "Advanced On" : "Advanced Off"}
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <div className="w-36">
+            <CompactDropdown
+              placeholder="Presets"
+              value=""
+              onChange={(val) => {
+                const preset = PRESETS.find(p => p.value === val);
+                if (preset) {
+                  setContext(prev => ({ ...prev, ...preset.context }));
+                }
+              }}
+              options={PRESETS.map(p => ({ value: p.value, label: p.label }))}
+              buttonClassName="py-1.5 text-[10px] uppercase tracking-wider"
+            />
+          </div>
+          <motion.button
+            variants={buttonVariants}
+            whileHover="hover"
+            whileTap="tap"
+            type="button"
+            onClick={() => setAdvancedMode((prev) => !prev)}
+            className="rounded-md border border-border bg-surfaceAlt px-3 py-1.5 text-xs uppercase tracking-[0.12em] text-text transition-colors hover:border-accent whitespace-nowrap"
+          >
+            {advancedMode ? "Advanced On" : "Advanced Off"}
+          </motion.button>
+        </div>
       </motion.div>
 
       <div className="space-y-4">
         <motion.div variants={itemVariants}>
-          <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">What do you want to do?</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs uppercase tracking-[0.12em] text-muted">What do you want to do?</label>
+            <AnimatePresence>
+              {fetchingSuggestions && (
+                <motion.div
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="flex items-center gap-1.5"
+                >
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    className="h-2 w-2 border border-accent border-t-transparent rounded-full"
+                  />
+                  <span className="text-[10px] text-accent uppercase tracking-wider font-medium">Refining Suggestions</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <textarea
             value={intent}
             onChange={(e) => setIntent(e.target.value)}
@@ -519,6 +608,10 @@ export default function ContextForm() {
               onChange={(e) => setContext((prev) => ({ ...prev, project: e.target.value }))}
               className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
             />
+            <SuggestionChips 
+              suggestions={suggestions.project} 
+              onSelect={(val) => setContext(prev => ({ ...prev, project: val }))} 
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Audience</label>
@@ -526,6 +619,10 @@ export default function ContextForm() {
               value={context.audience}
               onChange={(e) => setContext((prev) => ({ ...prev, audience: e.target.value }))}
               className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+            />
+            <SuggestionChips 
+              suggestions={suggestions.audience} 
+              onSelect={(val) => setContext(prev => ({ ...prev, audience: val }))} 
             />
           </div>
         </motion.div>
@@ -570,6 +667,10 @@ export default function ContextForm() {
                     onChange={(e) => setContext((prev) => ({ ...prev, style: e.target.value }))}
                     className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
                   />
+                  <SuggestionChips 
+                    suggestions={suggestions.style} 
+                    onSelect={(val) => setContext(prev => ({ ...prev, style: val }))} 
+                  />
                 </motion.div>
                 <motion.div variants={itemVariants} className="relative z-[10]">
                   <label className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted">Tone</label>
@@ -577,6 +678,10 @@ export default function ContextForm() {
                     value={context.tone}
                     onChange={(e) => setContext((prev) => ({ ...prev, tone: e.target.value }))}
                     className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+                  />
+                  <SuggestionChips 
+                    suggestions={suggestions.tone} 
+                    onSelect={(val) => setContext(prev => ({ ...prev, tone: val }))} 
                   />
                 </motion.div>
                 <motion.div variants={itemVariants} className="md:col-span-3 relative z-0">
@@ -586,6 +691,15 @@ export default function ContextForm() {
                     onChange={(e) => setConstraintsInput(e.target.value)}
                     placeholder="comma,separated,constraints"
                     className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+                  />
+                  <SuggestionChips 
+                    suggestions={suggestions.constraints} 
+                    onSelect={(val) => {
+                      const current = constraintsInput.split(",").map(c => c.trim()).filter(Boolean);
+                      if (!current.includes(val)) {
+                        setConstraintsInput([...current, val].join(", "));
+                      }
+                    }} 
                   />
                 </motion.div>
               </div>

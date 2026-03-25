@@ -37,6 +37,19 @@ export const behaviorSchema = {
   }
 } as const;
 
+export const suggestionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["project", "audience", "style", "tone", "constraints"],
+  properties: {
+    project: { type: "array", items: { type: "string" } },
+    audience: { type: "array", items: { type: "string" } },
+    style: { type: "array", items: { type: "string" } },
+    tone: { type: "array", items: { type: "string" } },
+    constraints: { type: "array", items: { type: "string" } }
+  }
+} as const;
+
 export function buildUserContextBlock(intent: string, userContext: UserContext) {
   return `USER CONTEXT:
 intent: ${intent}
@@ -54,6 +67,16 @@ Refine vague user intent into a clear project objective.
 Return JSON only.
 
 Input idea:
+${intent}`;
+}
+
+export function buildSuggestionTask(intent: string) {
+  return `TASK:
+Based on the user's intent, suggest 3-5 values for each of the following fields to help them fill the form.
+Values should be concise (1-4 words).
+For constraints, suggest specific rules or standards.
+
+Intent:
 ${intent}`;
 }
 
