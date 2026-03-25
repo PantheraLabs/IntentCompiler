@@ -534,15 +534,25 @@ export default function ContextForm() {
       <div className="space-y-4">
         {viewMode === "vibe" ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             className="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             {VIBE_GALLERY.map((vibe) => (
               <button
                 key={vibe.name}
                 type="button"
-                onClick={() => setContext(vibe.context as any)}
+                onClick={() => {
+                  setContext({
+                    project: vibe.context.project,
+                    audience: vibe.context.audience,
+                    techStack: vibe.context.tech_stack,
+                    depth: "basic",
+                    style: "Modern",
+                    constraints: vibe.context.constraints
+                  });
+                  setViewMode("build");
+                }}
                 className="group relative overflow-hidden rounded-2xl border border-border bg-surfaceAlt/50 p-5 text-left transition-all hover:border-emerald-500/50 hover:bg-emerald-500/5"
               >
                 <div className="mb-2 text-sm font-bold text-text group-hover:text-emerald-400">{vibe.name}</div>

@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or AICC_API_KEY."
+          "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama."
       },
       { status: 500 }
     );

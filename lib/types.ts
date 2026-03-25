@@ -8,7 +8,7 @@ export type UserContext = {
   constraints: string[];
 };
 
-export type Provider = "openai" | "groq" | "aicc" | "openrouter" | "ollama";
+export type Provider = "openai" | "groq" | "openrouter" | "ollama";
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
 

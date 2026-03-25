@@ -9,12 +9,10 @@ export type AICCMessage = {
 const MODEL_OPTIONS: Record<Provider, string[]> = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-mini"],
   groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
-  aicc: ["anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-70b", "meta-llama/llama-3.1-8b"],
   openrouter: ["openrouter/free"],
   ollama: ["llama3", "mistral", "phi3"] // Fallback if fetch fails
 };
 
-let aiccModelCache: { models: string[]; expiresAt: number } | null = null;
 let groqModelCache: { models: string[]; expiresAt: number } | null = null;
 let ollamaModelCache: { models: string[]; expiresAt: number } | null = null;
 let openRouterModelCache: { models: string[]; expiresAt: number } | null = null;
@@ -47,63 +45,20 @@ function hasProviderKey(provider: Provider) {
   if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
   if (provider === "openrouter") return Boolean(process.env.OPENROUTER_API_KEY);
   if (provider === "ollama") return true; // Local provider, assume reachable or fail gracefully
-  return Boolean(process.env.AICC_API_KEY);
+  return false;
 }
 
 export function getAvailableProviders(): Provider[] {
-  // Cost-priority order (cheaper first): Ollama -> OpenRouter -> AICC -> Groq -> OpenAI.
-  const priority: Provider[] = ["ollama", "openrouter", "aicc", "groq", "openai"];
+  // Cost-priority order (cheaper first): Ollama -> OpenRouter -> Groq -> OpenAI.
+  const priority: Provider[] = ["ollama", "openrouter", "groq", "openai"];
   return priority.filter((provider) => hasProviderKey(provider));
 }
 
 export function assertAnyProviderKey() {
   if (!getAvailableProviders().length) {
     throw new Error(
-      "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or AICC_API_KEY."
+      "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama."
     );
-  }
-}
-
-async function fetchAiccModels() {
-  if (!process.env.AICC_API_KEY) {
-    return MODEL_OPTIONS.aicc;
-  }
-
-  if (aiccModelCache && Date.now() < aiccModelCache.expiresAt) {
-    return aiccModelCache.models;
-  }
-
-  try {
-    const response = await fetch("https://api.ai.cc/v1/models", {
-      headers: {
-        Authorization: `Bearer ${process.env.AICC_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      cache: "no-store"
-    });
-
-    if (!response.ok) {
-      return MODEL_OPTIONS.aicc;
-    }
-
-    const payload = (await response.json()) as { data?: Array<{ id?: string }> };
-    const models = Array.from(
-      new Set(
-        (payload.data || [])
-          .map((entry) => entry.id?.trim())
-          .filter((id): id is string => Boolean(id))
-      )
-    );
-
-    const filtered = filterTextModels(models);
-    const resolved = filtered.length ? filtered : MODEL_OPTIONS.aicc;
-    aiccModelCache = {
-      models: resolved,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    };
-    return resolved;
-  } catch {
-    return MODEL_OPTIONS.aicc;
   }
 }
 
@@ -215,9 +170,6 @@ async function fetchOpenRouterModels() {
 }
 
 export async function getModelsForProvider(provider: Provider) {
-  if (provider === "aicc") {
-    return fetchAiccModels();
-  }
   if (provider === "groq") {
     return fetchGroqModels();
   }
@@ -252,7 +204,7 @@ export async function getUniqueModelsByProvider(providers: Provider[]) {
 export function getDefaultProvider(): Provider {
   const providers = getAvailableProviders();
   if (!providers.length) {
-    throw new Error("No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, or AICC_API_KEY.");
+    throw new Error("No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama.");
   }
   return providers[0];
 }
@@ -281,31 +233,6 @@ export function resolveModelConfig(
 
 export async function callAICC(messages: AICCMessage[], config: string | Partial<ModelConfig>) {
   const resolved = typeof config === "string" ? resolveModelConfig({ model: config }) : resolveModelConfig(config);
-
-  if (resolved.provider === "aicc") {
-    if (!process.env.AICC_API_KEY) {
-      throw new Error("Missing AICC_API_KEY environment variable.");
-    }
-
-    const response = await fetch("https://api.ai.cc/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.AICC_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: resolved.model,
-        messages
-      })
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`AICC request failed (${response.status}): ${errorBody}`);
-    }
-
-    return response.json();
-  }
 
   if (resolved.provider === "groq") {
     if (!process.env.GROQ_API_KEY) {

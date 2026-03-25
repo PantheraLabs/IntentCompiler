@@ -18,7 +18,7 @@ Complex technical tasks often fail due to poorly defined context, shifting requi
 - **Instruction Generator:** Exports intents into 6+ specialized formats including `CLAUDE.md`, `AGENTS.md`, and `.windsurfrules`.
 - **Inspiration Marquee:** An animated, interactive carousel of diverse example intents to jumpstart your workflow.
 - **Intelligent Model Orchestration:** A 3-tier model strategy (Quality, Efficiency, Speed) that automatically selects the best LLM (Llama 3.3, Claude 3.5, GPT-4o-mini, etc.) for each sub-task.
-- **Dynamic Provider Support:** Real-time fetching and selection of models from Groq and OpenAI.
+- **Dynamic Provider Support:** Real-time fetching and selection of models from OpenRouter, Groq, and OpenAI.
 - **Local LLM Support (Ollama):** High-speed, private inference using models running on your local machine (e.g., Llama 3, Mistral, Phi-3).
 - **Vibe Mode:** A dedicated high-fidelity UI view for ultra-fast architectural building.
 - **Project Scan Engine:** Automatically detects your project's name and tech stack (Next.js, React, Tailwind, TS) to provide zero-click context.
@@ -37,7 +37,7 @@ Intent Compiler is built with a **Fullstack Next.js (App Router)** architecture,
 - **Framework:** [Next.js 15](https://nextjs.org/) (App Router)
 - **UI:** [React 19](https://reactjs.org/), [Tailwind CSS](https://tailwindcss.com/)
 - **Animations:** [Framer Motion](https://www.framer.com/motion/)
-- **AI Integration:** [OpenAI SDK](https://github.com/openai/openai-node), [Groq API](https://groq.com/)
+- **AI Integration:** [OpenAI SDK](https://github.com/openai/openai-node), [OpenRouter](https://openrouter.ai/), [Groq API](https://groq.com/)
 - **Language:** TypeScript 5.8
 - **Formatting:** ESLint
 
@@ -76,6 +76,7 @@ Intent Compiler is built with a **Fullstack Next.js (App Router)** architecture,
 3. Configure environment variables. Create a `.env` file in the root:
    ```env
    OPENAI_API_KEY=your_openai_key
+   OPENROUTER_API_KEY=your_openrouter_key
    GROQ_API_KEY=your_groq_key
    ```
    *(See `.env.example` for all required fields)*
