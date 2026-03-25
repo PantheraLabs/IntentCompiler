@@ -6,7 +6,10 @@ export async function GET() {
     assertAnyProviderKey();
   } catch {
     return NextResponse.json(
-      { error: "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, or AICC_API_KEY." },
+      {
+        error:
+          "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or AICC_API_KEY."
+      },
       { status: 500 }
     );
   }

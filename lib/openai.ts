@@ -4,14 +4,20 @@ import type { ModelConfig, Provider } from "@/lib/types";
 const OPENAI_DEFAULT_MODEL = "gpt-4.1";
 const GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const AICC_DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+const OPENROUTER_DEFAULT_MODEL = "openrouter/free";
 
 export const MODEL_OPTIONS: Record<Provider, string[]> = {
   openai: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o-mini"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
-  aicc: ["anthropic/claude-3.5-sonnet", "mistral/mixtral-8x7b", "meta-llama/llama-3-8b"]
+  aicc: ["anthropic/claude-3.5-sonnet", "mistral/mixtral-8x7b", "meta-llama/llama-3-8b"],
+  openrouter: ["openrouter/free"],
+  ollama: ["llama3"]
 };
 
 export function getDefaultModelConfig(): ModelConfig {
+  if (process.env.OPENROUTER_API_KEY) {
+    return { provider: "openrouter", model: OPENROUTER_DEFAULT_MODEL };
+  }
   if (process.env.OPENAI_API_KEY) {
     return { provider: "openai", model: OPENAI_DEFAULT_MODEL };
   }
@@ -47,6 +53,20 @@ export function getLLMClient(config?: Partial<ModelConfig>) {
 
   if (resolved.provider === "aicc") {
     throw new Error("AICC provider is handled via /lib/aicc.ts client helpers.");
+  }
+
+  if (resolved.provider === "openrouter") {
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error("Missing OPENROUTER_API_KEY environment variable.");
+    }
+    return {
+      client: new OpenAI({
+        apiKey: process.env.OPENROUTER_API_KEY,
+        baseURL: "https://openrouter.ai/api/v1"
+      }),
+      model: resolved.model,
+      provider: resolved.provider
+    };
   }
 
   if (!process.env.OPENAI_API_KEY) {

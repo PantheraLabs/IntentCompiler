@@ -177,7 +177,9 @@ function isLegacyModel(model: string) {
 }
 
 function isRecommendedModel(model: string) {
-  return /gpt-4\.1|gpt-4o|llama-3\.3|llama-3\.1|claude-3\.5|claude-4|gemini-2|mixtral|qwen|grok|phi|gemma|mistral|deepseek/i.test(model);
+  return /gpt-4\.1|gpt-4o|llama-3\.3|llama-3\.1|claude-3\.5|claude-4|gemini-2|mixtral|qwen|grok|phi|gemma|mistral|deepseek|openrouter|\/free/i.test(
+    model
+  );
 }
 
 function formatModelLabel(model: string) {
@@ -203,6 +205,7 @@ function getModelFamily(model: string) {
   if (normalized.includes("gemma")) return "Gemma";
   if (normalized.includes("mistral")) return "Mistral";
   if (normalized.includes("deepseek")) return "DeepSeek";
+  if (normalized.includes("openrouter")) return "OpenRouter";
   return "Other";
 }
 
@@ -529,7 +532,34 @@ export default function ContextForm() {
       </motion.div>
 
       <div className="space-y-4">
-        <motion.div variants={itemVariants}>
+        {viewMode === "vibe" ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            {VIBE_GALLERY.map((vibe) => (
+              <button
+                key={vibe.name}
+                type="button"
+                onClick={() => setContext(vibe.context as any)}
+                className="group relative overflow-hidden rounded-2xl border border-border bg-surfaceAlt/50 p-5 text-left transition-all hover:border-emerald-500/50 hover:bg-emerald-500/5"
+              >
+                <div className="mb-2 text-sm font-bold text-text group-hover:text-emerald-400">{vibe.name}</div>
+                <div className="text-[11px] leading-relaxed text-muted">{vibe.description}</div>
+                <div className="mt-4 flex flex-wrap gap-1">
+                  {vibe.context.tech_stack.split(",").slice(0, 2).map(tech => (
+                    <span key={tech} className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-emerald-400/80">
+                      {tech.trim()}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        ) : (
+          <>
+            <motion.div variants={itemVariants}>
           <div className="flex items-center justify-between mb-1">
             <label className="block text-xs uppercase tracking-[0.12em] text-muted">What do you want to do?</label>
             <AnimatePresence>
@@ -841,8 +871,10 @@ export default function ContextForm() {
           >
             {compilingInstruction ? "Compiling Instruction..." : "Compile Instruction File"}
           </motion.button>
-        </motion.div>
-      </div>
+          </motion.div>
+        </>
+      )}
+    </div>
 
       <AnimatePresence>
         {compilingInstruction && (

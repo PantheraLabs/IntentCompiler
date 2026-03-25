@@ -10,12 +10,14 @@ const MODEL_OPTIONS: Record<Provider, string[]> = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-mini"],
   groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
   aicc: ["anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-70b", "meta-llama/llama-3.1-8b"],
+  openrouter: ["openrouter/free"],
   ollama: ["llama3", "mistral", "phi3"] // Fallback if fetch fails
 };
 
 let aiccModelCache: { models: string[]; expiresAt: number } | null = null;
 let groqModelCache: { models: string[]; expiresAt: number } | null = null;
 let ollamaModelCache: { models: string[]; expiresAt: number } | null = null;
+let openRouterModelCache: { models: string[]; expiresAt: number } | null = null;
 
 function isTextFirstModel(model: string) {
   const id = model.toLowerCase();
@@ -43,19 +45,22 @@ function filterTextModels(models: string[]) {
 function hasProviderKey(provider: Provider) {
   if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
   if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
+  if (provider === "openrouter") return Boolean(process.env.OPENROUTER_API_KEY);
   if (provider === "ollama") return true; // Local provider, assume reachable or fail gracefully
   return Boolean(process.env.AICC_API_KEY);
 }
 
 export function getAvailableProviders(): Provider[] {
-  // Cost-priority order (cheaper first): Ollama -> AICC -> Groq -> OpenAI.
-  const priority: Provider[] = ["ollama", "aicc", "groq", "openai"];
+  // Cost-priority order (cheaper first): Ollama -> OpenRouter -> AICC -> Groq -> OpenAI.
+  const priority: Provider[] = ["ollama", "openrouter", "aicc", "groq", "openai"];
   return priority.filter((provider) => hasProviderKey(provider));
 }
 
 export function assertAnyProviderKey() {
   if (!getAvailableProviders().length) {
-    throw new Error("No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, or AICC_API_KEY.");
+    throw new Error(
+      "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or AICC_API_KEY."
+    );
   }
 }
 
@@ -155,12 +160,69 @@ async function fetchOllamaModels() {
   }
 }
 
+async function fetchOpenRouterModels() {
+  if (!process.env.OPENROUTER_API_KEY) {
+    return MODEL_OPTIONS.openrouter;
+  }
+  if (openRouterModelCache && Date.now() < openRouterModelCache.expiresAt) {
+    return openRouterModelCache.models;
+  }
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/models", {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`
+      },
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      return MODEL_OPTIONS.openrouter;
+    }
+
+    const payload = (await response.json()) as {
+      data?: Array<{
+        id?: string;
+        pricing?: { prompt?: string; completion?: string; request?: string };
+        architecture?: { output_modalities?: string[] };
+      }>;
+    };
+
+    const freeModelIds = (payload.data || [])
+      .filter((model) => {
+        const modalities = model.architecture?.output_modalities || [];
+        if (modalities.length && !modalities.includes("text")) return false;
+        const pricing = model.pricing || {};
+        const prompt = Number(pricing.prompt ?? "1");
+        const completion = Number(pricing.completion ?? "1");
+        const request = Number(pricing.request ?? "1");
+        return prompt === 0 && completion === 0 && request === 0;
+      })
+      .map((model) => model.id?.trim())
+      .filter((id): id is string => Boolean(id));
+
+    const deduped = Array.from(new Set(["openrouter/free", ...freeModelIds]));
+    const filtered = filterTextModels(deduped);
+    const resolved = filtered.length ? filtered : MODEL_OPTIONS.openrouter;
+    openRouterModelCache = {
+      models: resolved,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    };
+    return resolved;
+  } catch {
+    return MODEL_OPTIONS.openrouter;
+  }
+}
+
 export async function getModelsForProvider(provider: Provider) {
   if (provider === "aicc") {
     return fetchAiccModels();
   }
   if (provider === "groq") {
     return fetchGroqModels();
+  }
+  if (provider === "openrouter") {
+    return fetchOpenRouterModels();
   }
   if (provider === "ollama") {
     return fetchOllamaModels();
@@ -287,6 +349,20 @@ export async function callAICC(messages: AICCMessage[], config: string | Partial
         }
       ]
     };
+  }
+
+  if (resolved.provider === "openrouter") {
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error("Missing OPENROUTER_API_KEY environment variable.");
+    }
+    const client = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1"
+    });
+    return client.chat.completions.create({
+      model: resolved.model,
+      messages
+    });
   }
 
   if (!process.env.OPENAI_API_KEY) {
