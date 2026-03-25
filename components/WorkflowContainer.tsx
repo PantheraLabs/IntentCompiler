@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { jsPDF } from "jspdf";
 import StepCard from "@/components/StepCard";
 import ExecutionPanel from "@/components/ExecutionPanel";
@@ -17,7 +18,13 @@ type WorkflowContainerProps = {
   modelConfig: ModelConfig;
 };
 
-type ExecuteResponse = { output?: string; error?: string };
+type ExecuteResponse = { 
+  output?: string; 
+  error?: string;
+  warnings?: string[];
+  attempts?: number;
+  quality?: { score: number; issues: number };
+};
 type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
   type InstructionQuality = {
   score: number;
@@ -302,6 +309,7 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
             onMoveDown={() => moveStep(index, 1)}
             onTaskChange={(value) => updateTask(index, value)}
             onCriteriaChange={(patch) => updateCriteria(index, patch)}
+            availableSteps={steps}
           />
         ))}
       </div>
@@ -438,19 +446,19 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
                 <div className="rounded-lg border border-border bg-black/20 p-4">
                   <p className="mb-2 text-xs uppercase tracking-[0.12em] text-muted">Original</p>
                   <div className="prose prose-invert prose-sm max-w-none max-h-[360px] overflow-auto">
-                    <ReactMarkdown>{originalMarkdown}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{originalMarkdown}</ReactMarkdown>
                   </div>
                 </div>
                 <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-4">
                   <p className="mb-2 text-xs uppercase tracking-[0.12em] text-emerald-200">Improved</p>
                   <div className="prose prose-invert prose-sm max-w-none max-h-[360px] overflow-auto">
-                    <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedMarkdown}</ReactMarkdown>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-black/20 p-5 max-h-[400px] overflow-auto">
-                <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedMarkdown}</ReactMarkdown>
               </div>
             )}
           </div>

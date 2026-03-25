@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { WorkflowStep } from "@/lib/types";
+import type { ToolConfig } from "@/lib/tools/registry";
 
 type StepCardProps = {
   step: WorkflowStep;
@@ -16,6 +19,7 @@ type StepCardProps = {
   onMoveDown: () => void;
   onTaskChange: (value: string) => void;
   onCriteriaChange: (patch: Partial<WorkflowStep>) => void;
+  availableSteps?: WorkflowStep[]; // For dependency/condition selection
 };
 
 const statusClass: Record<NonNullable<WorkflowStep["status"]>, string> = {
@@ -37,10 +41,13 @@ export default function StepCard({
   onMoveUp,
   onMoveDown,
   onTaskChange,
-  onCriteriaChange
+  onCriteriaChange,
+  availableSteps = []
 }: StepCardProps) {
   const status = step.status ?? "idle";
   const showOutput = status !== "idle" || Boolean(step.output);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeTab, setActiveTab] = useState<"basic" | "tools" | "conditions" | "dependencies">("basic");
 
   return (
     <article
@@ -49,23 +56,44 @@ export default function StepCard({
       }`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.12em] text-muted">Step {index + 1}</p>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-xs uppercase tracking-[0.12em] text-muted">Step {index + 1}</p>
+            {step.id && (
+              <span className="text-[9px] text-muted/50 font-mono">{step.id.slice(0, 8)}...</span>
+            )}
+          </div>
           <p className="text-sm font-semibold text-text">{step.role}</p>
         </div>
-        <span
-          className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${
-            status === "running"
-              ? "bg-cyan-300/20 text-cyan-300"
-              : status === "success"
-              ? "bg-emerald-300/20 text-emerald-300"
-              : status === "error"
-              ? "bg-rose-300/20 text-rose-300"
-              : "bg-white/10 text-muted"
-          }`}
-        >
-          {status}
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Quality Score Badge */}
+          {step.logs && step.logs.length > 0 && step.logs[step.logs.length - 1]?.quality && (
+            <span
+              className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                (step.logs[step.logs.length - 1].quality?.score || 0) >= 85
+                  ? "bg-emerald-400/20 text-emerald-300"
+                  : (step.logs[step.logs.length - 1].quality?.score || 0) >= 70
+                  ? "bg-amber-400/20 text-amber-300"
+                  : "bg-rose-400/20 text-rose-300"
+              }`}
+            >
+              Quality: {step.logs[step.logs.length - 1].quality?.score}/100
+            </span>
+          )}
+          <span
+            className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${
+              status === "running"
+                ? "bg-cyan-300/20 text-cyan-300"
+                : status === "success"
+                ? "bg-emerald-300/20 text-emerald-300"
+                : status === "error"
+                ? "bg-rose-300/20 text-rose-300"
+                : "bg-white/10 text-muted"
+            }`}
+          >
+            {status}
+          </span>
+        </div>
       </div>
       <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-muted">
         <span className="rounded-full border border-border px-2 py-0.5">type: {step.stepType || "analysis"}</span>
@@ -147,6 +175,280 @@ export default function StepCard({
         </div>
       </div>
 
+      {/* Advanced Configuration Tabs */}
+      <div className="mt-4 border-t border-border/50 pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Advanced Configuration</p>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="text-[10px] text-accent hover:text-accent/80 transition"
+          >
+            {showAdvanced ? "Hide" : "Show"}
+          </button>
+        </div>
+        
+        {showAdvanced && (
+          <div className="space-y-3">
+            {/* Tab Navigation */}
+            <div className="flex gap-1 border-b border-border/50 pb-2">
+              {(["basic", "tools", "dependencies", "conditions"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1 text-[10px] uppercase tracking-[0.12em] rounded-t transition ${
+                    activeTab === tab
+                      ? "bg-accent/20 text-accent border-b-2 border-accent"
+                      : "text-muted hover:text-text"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Tools Tab */}
+            {activeTab === "tools" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Tool Mode</label>
+                  <select
+                    value={step.tool?.mode || "llm"}
+                    onChange={(e) => {
+                      const mode = e.target.value as ToolConfig["mode"];
+                      onCriteriaChange({
+                        tool: {
+                          mode,
+                          config: mode === "llm" ? {} : { command: "", url: "", query: "", path: "" }
+                        } as WorkflowStep["tool"]
+                      });
+                    }}
+                    className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                  >
+                    <option value="llm">LLM Only (Default)</option>
+                    <option value="shell">Shell Command</option>
+                    <option value="http">HTTP Request</option>
+                    <option value="search">Web Search</option>
+                    <option value="file">File Operation</option>
+                  </select>
+                </div>
+
+                {step.tool?.mode === "shell" && (
+                  <div>
+                    <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Command</label>
+                    <textarea
+                      value={(step.tool.config as { command?: string })?.command || ""}
+                      onChange={(e) => onCriteriaChange({
+                        tool: { mode: "shell", config: { command: e.target.value } }
+                      })}
+                      rows={2}
+                      placeholder="e.g., npm test"
+                      className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent font-mono"
+                    />
+                  </div>
+                )}
+
+                {step.tool?.mode === "http" && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Method</label>
+                        <select
+                          value={(step.tool.config as { method?: string })?.method || "GET"}
+                          onChange={(e) => onCriteriaChange({
+                            tool: { mode: "http", config: { ...(step.tool?.config || {}), method: e.target.value } }
+                          })}
+                          className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                        >
+                          <option value="GET">GET</option>
+                          <option value="POST">POST</option>
+                          <option value="PUT">PUT</option>
+                          <option value="DELETE">DELETE</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">URL</label>
+                        <input
+                          type="text"
+                          value={(step.tool.config as { url?: string })?.url || ""}
+                          onChange={(e) => onCriteriaChange({
+                            tool: { mode: "http", config: { ...(step.tool?.config || {}), url: e.target.value } }
+                          })}
+                          placeholder="https://api.example.com/data"
+                          className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {step.tool?.mode === "search" && (
+                  <>
+                    <div>
+                      <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Provider</label>
+                      <select
+                        value={(step.tool.config as { provider?: string })?.provider || "perplexity"}
+                        onChange={(e) => onCriteriaChange({
+                          tool: { mode: "search", config: { ...(step.tool?.config || {}), provider: e.target.value } }
+                        })}
+                        className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                      >
+                        <option value="perplexity">Perplexity</option>
+                        <option value="tavily">Tavily</option>
+                        <option value="brave">Brave</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Search Query</label>
+                      <input
+                        type="text"
+                        value={(step.tool.config as { query?: string })?.query || ""}
+                        onChange={(e) => onCriteriaChange({
+                          tool: { mode: "search", config: { ...(step.tool?.config || {}), query: e.target.value } }
+                        })}
+                        placeholder="Enter search query"
+                        className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {step.tool?.mode === "file" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Operation</label>
+                        <select
+                          value={(step.tool.config as { operation?: string })?.operation || "read"}
+                          onChange={(e) => onCriteriaChange({
+                            tool: { mode: "file", config: { ...(step.tool?.config || {}), operation: e.target.value } }
+                          })}
+                          className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                        >
+                          <option value="read">Read</option>
+                          <option value="write">Write</option>
+                          <option value="list">List Directory</option>
+                          <option value="search">Search Files</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Path</label>
+                        <input
+                          type="text"
+                          value={(step.tool.config as { path?: string })?.path || ""}
+                          onChange={(e) => onCriteriaChange({
+                            tool: { mode: "file", config: { ...(step.tool?.config || {}), path: e.target.value } }
+                          })}
+                          placeholder="./src/file.ts"
+                          className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Dependencies Tab */}
+            {activeTab === "dependencies" && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted">Select steps that must complete before this step can run:</p>
+                {availableSteps
+                  .filter((s) => s.id !== step.id)
+                  .map((availableStep) => (
+                    <label key={availableStep.id} className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={step.dependencies?.includes(availableStep.id!) || false}
+                        onChange={(e) => {
+                          const currentDeps = step.dependencies || [];
+                          const newDeps = e.target.checked
+                            ? [...currentDeps, availableStep.id!]
+                            : currentDeps.filter((id) => id !== availableStep.id);
+                          onCriteriaChange({ dependencies: newDeps });
+                        }}
+                        className="rounded border-border"
+                      />
+                      <span className="text-muted">{availableStep.role}</span>
+                      <span className="text-[9px] text-muted/50 font-mono">({availableStep.id?.slice(0, 8)}...)</span>
+                    </label>
+                  ))}
+                {availableSteps.filter((s) => s.id !== step.id).length === 0 && (
+                  <p className="text-xs text-muted italic">No other steps available for dependency.</p>
+                )}
+              </div>
+            )}
+
+            {/* Conditions Tab */}
+            {activeTab === "conditions" && (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+                  <p className="font-semibold">Conditional Branching</p>
+                  <p className="text-[10px] mt-1">Define a condition that determines which step runs next.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">Condition (natural language)</label>
+                  <input
+                    type="text"
+                    value={step.condition?.if || ""}
+                    onChange={(e) => onCriteriaChange({
+                      condition: e.target.value
+                        ? {
+                            if: e.target.value,
+                            then: step.condition?.then || "",
+                            else: step.condition?.else || ""
+                          }
+                        : undefined
+                    })}
+                    placeholder="e.g., output contains 'error'"
+                    className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                  />
+                </div>
+                {step.condition?.if && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">If True → Go To</label>
+                      <select
+                        value={step.condition.then}
+                        onChange={(e) => onCriteriaChange({
+                          condition: { ...step.condition!, then: e.target.value }
+                        })}
+                        className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                      >
+                        <option value="">Select step...</option>
+                        {availableSteps
+                          .filter((s) => s.id !== step.id)
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>{s.role} ({s.id?.slice(0, 8)}...)</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-muted">If False → Go To</label>
+                      <select
+                        value={step.condition.else}
+                        onChange={(e) => onCriteriaChange({
+                          condition: { ...step.condition!, else: e.target.value }
+                        })}
+                        className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-xs text-text outline-none transition focus:border-accent"
+                      >
+                        <option value="">Select step...</option>
+                        {availableSteps
+                          .filter((s) => s.id !== step.id)
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>{s.role} ({s.id?.slice(0, 8)}...)</option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
@@ -216,7 +518,20 @@ export default function StepCard({
                     })()}
                   </pre>
                 ) : (
-                  <ReactMarkdown>{step.output}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-2">
+                          <table className="min-w-full text-xs border-collapse border border-border/50">{children}</table>
+                        </div>
+                      ),
+                      thead: ({ children }) => <thead className="bg-surfaceAlt/80">{children}</thead>,
+                      th: ({ children }) => <th className="border border-border/50 px-3 py-1.5 text-left font-semibold text-text/90 text-[10px] uppercase tracking-wider">{children}</th>,
+                      td: ({ children }) => <td className="border border-border/40 px-3 py-1.5 text-muted">{children}</td>,
+                      tr: ({ children }) => <tr className="even:bg-surfaceAlt/30">{children}</tr>,
+                    }}
+                  >{step.output}</ReactMarkdown>
                 )}
               </div>
             ) : (

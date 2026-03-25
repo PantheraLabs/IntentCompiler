@@ -36,6 +36,7 @@ export type WorkflowStep = {
     output: string;
     warnings: string[];
     timestamp: string;
+    quality?: { score: number; issues: number };
   }>;
   // Branching and flow control
   condition?: {
