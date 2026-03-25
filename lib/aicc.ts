@@ -13,6 +13,7 @@ const MODEL_OPTIONS: Record<Provider, string[]> = {
 };
 
 let aiccModelCache: { models: string[]; expiresAt: number } | null = null;
+let groqModelCache: { models: string[]; expiresAt: number } | null = null;
 
 function isTextFirstModel(model: string) {
   const id = model.toLowerCase();
@@ -98,9 +99,42 @@ async function fetchAiccModels() {
   }
 }
 
+async function fetchGroqModels() {
+  if (!process.env.GROQ_API_KEY) {
+    return MODEL_OPTIONS.groq;
+  }
+
+  if (groqModelCache && Date.now() < groqModelCache.expiresAt) {
+    return groqModelCache.models;
+  }
+
+  try {
+    const client = new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1"
+    });
+
+    const response = await client.models.list();
+    const models = response.data.map((m) => m.id);
+    const filtered = filterTextModels(models);
+    const resolved = filtered.length ? filtered : MODEL_OPTIONS.groq;
+
+    groqModelCache = {
+      models: resolved,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10 min cache
+    };
+    return resolved;
+  } catch {
+    return MODEL_OPTIONS.groq;
+  }
+}
+
 export async function getModelsForProvider(provider: Provider) {
   if (provider === "aicc") {
     return fetchAiccModels();
+  }
+  if (provider === "groq") {
+    return fetchGroqModels();
   }
   return filterTextModels(MODEL_OPTIONS[provider]);
 }
