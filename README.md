@@ -111,7 +111,8 @@ npm run lint
 
 ## Roadmap
 
-- [ ] Support for local LLM providers (Ollama).
+- [x] Support for local LLM providers (Ollama).
+- [x] Integrate project context auto-detection/scanning.
 - [ ] Export workflows directly to JSON/YAML for CLI runners.
 - [ ] Multi-turn intent refinement (chat-based context building).
 - [ ] Performance benchmarking for different model tiers.
