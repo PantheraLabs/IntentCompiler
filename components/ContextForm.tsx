@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import CompactDropdown from "@/components/ui/CompactDropdown";
 import SuggestionChips from "@/components/ui/SuggestionChips";
+import ModelRecommendationBadge from "@/components/ModelRecommendationBadge";
+import VibeLibrary from "@/components/VibeLibrary";
+import type { ModelRecommendation } from "@/lib/modelRouter";
 import type {
   BehaviorDefinition,
   IntentRefinement,
@@ -12,6 +15,7 @@ import type {
   Provider,
   StructuredContext,
   UserContext,
+  VibeTemplate,
   WorkflowStep
 } from "@/lib/types";
 
@@ -88,7 +92,7 @@ type ModelsResponse = {
 };
 
 type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
-type ModelViewMode = "recommended" | "all" | "legacy";
+type ModelViewMode = "recommended" | "all" | "legacy" | "free";
 
 const EXAMPLE_INTENTS = [
   "Build a React weather app with Tailwind",
@@ -178,9 +182,14 @@ function isLegacyModel(model: string) {
 }
 
 function isRecommendedModel(model: string) {
-  return /gpt-4\.1|gpt-4o|llama-3\.3|llama-3\.1|claude-3\.5|claude-4|gemini-2|mixtral|qwen|grok|phi|gemma|mistral|deepseek|openrouter|\/free/i.test(
+  return /gpt-4\.1|gpt-4o|llama-3\.3|llama-3\.1|claude-3\.5|claude-4|gemini-2|mixtral|qwen|grok|phi|gemma|mistral|deepseek/i.test(
     model
   );
+}
+
+function isFreeModel(model: string, provider: Provider) {
+  if (provider === "groq" || provider === "ollama") return true;
+  return /:free|^openrouter\/free/i.test(model);
 }
 
 function formatModelLabel(model: string) {
@@ -210,21 +219,110 @@ function getModelFamily(model: string) {
   return "Other";
 }
 
-const VIBE_GALLERY = [
+const VIBE_GALLERY: VibeTemplate[] = [
   {
+    id: "shadcn-vibe",
     name: "Shadcn Vibe",
     description: "Modern, clean, and interactive",
     context: { project: "Next.js App", audience: "Frontend Devs", tech_stack: "Next.js 15, Tailwind CSS, Shadcn/UI, Lucide", style: "Neon Minimalist", constraints: ["Strict TypeScript", "Accessibility First"] }
   },
   {
+    id: "python-fastapi",
     name: "Python FastVibe",
     description: "FastAPI + Pydantic performance",
     context: { project: "Python Backend", audience: "Data Engineers", tech_stack: "FastAPI, Pydantic v2, PostgreSQL, Redis", style: "Concise & Scalable", constraints: ["Async First", "Type Hinting"] }
   },
   {
+    id: "t3-stack",
     name: "The T3 Vibe",
     description: "Type-safe fullstack speed",
     context: { project: "T3 Stack App", audience: "Fullstack Teams", tech_stack: "Next.js, tRPC, Prisma, Tailwind", style: "Safety First", constraints: ["Zod Validation", "End-to-end Types"] }
+  },
+  // Enterprise / Professional Vibes
+  {
+    id: "enterprise-saas",
+    name: "Enterprise SaaS",
+    description: "Multi-tenant SaaS with RBAC, billing, and audit logging",
+    context: { project: "B2B SaaS Platform", audience: "Enterprise Clients", tech_stack: "Next.js, PostgreSQL, Stripe, Clerk, Redis, BullMQ", style: "Enterprise Grade", constraints: ["Multi-tenancy", "RBAC", "Audit Logging", "GDPR Compliance"] }
+  },
+  {
+    id: "event-driven-microservices",
+    name: "Event-Driven Microservices",
+    description: "Async event streaming with message brokers and CQRS",
+    context: { project: "Distributed System", audience: "Platform Engineers", tech_stack: "Node.js, Kafka/RabbitMQ, PostgreSQL, Redis, Docker, Kubernetes", style: "Event-Driven Architecture", constraints: ["Eventual Consistency", "Idempotency", "Saga Pattern", "Circuit Breakers"] }
+  },
+  {
+    id: "data-engineering",
+    name: "Data Engineering Pipeline",
+    description: "ETL/ELT pipelines with real-time streaming",
+    context: { project: "Data Platform", audience: "Data Engineers", tech_stack: "Apache Kafka, Airflow, dbt, Snowflake/BigQuery, Python, pandas", style: "Production Data Pipelines", constraints: ["Data Quality Checks", "Schema Evolution", "Partitioning Strategy", "Monitoring & Alerting"] }
+  },
+  {
+    id: "devops-platform",
+    name: "DevOps Platform",
+    description: "CI/CD automation with IaC and observability",
+    context: { project: "DevOps Platform", audience: "DevOps Engineers", tech_stack: "GitHub Actions, Terraform, AWS/GCP, Docker, Kubernetes, Prometheus, Grafana", style: "Infrastructure as Code", constraints: ["GitOps", "Immutable Infrastructure", "Zero-Downtime Deploy", "Cost Optimization"] }
+  },
+  {
+    id: "ai-ml-engineering",
+    name: "AI/ML Engineering",
+    description: "MLOps pipeline with model serving and feature stores",
+    context: { project: "ML Platform", audience: "ML Engineers", tech_stack: "Python, PyTorch/TensorFlow, MLflow, Kubeflow, Feast, FastAPI, Ray", style: "Production ML Systems", constraints: ["Model Versioning", "A/B Testing", "Feature Store", "Drift Detection"] }
+  },
+  {
+    id: "api-gateway",
+    name: "API Gateway Platform",
+    description: "BFF pattern with rate limiting and auth",
+    context: { project: "API Platform", audience: "API Consumers", tech_stack: "Kong/AWS API Gateway, Node.js/Go, Redis, JWT/OAuth2, OpenAPI", style: "API-First Design", constraints: ["Rate Limiting", "Request Validation", "Schema Registry", "Backward Compatibility"] }
+  },
+  {
+    id: "real-time-streaming",
+    name: "Real-Time Streaming",
+    description: "WebSocket/WebRTC apps with low-latency requirements",
+    context: { project: "Streaming Platform", audience: "Real-time Users", tech_stack: "Node.js, Socket.io/WebRTC, Redis Pub/Sub, TimescaleDB, Grafana", style: "Low Latency Systems", constraints: ["Sub-100ms Latency", "Horizontal Scaling", "Graceful Degradation", "Connection Resilience"] }
+  },
+  {
+    id: "fintech-platform",
+    name: "FinTech Platform",
+    description: "Financial systems with ACID compliance and security",
+    context: { project: "Financial Platform", audience: "Financial Institutions", tech_stack: "Java/Go, PostgreSQL, Kafka, Redis, Vault, Kubernetes", style: "Banking Grade Security", constraints: ["ACID Transactions", "PCI-DSS Compliance", "Idempotency Keys", "Audit Trails"] }
+  },
+  {
+    id: "ecommerce-engine",
+    name: "E-commerce Engine",
+    description: "High-volume commerce with inventory and payments",
+    context: { project: "E-commerce Platform", audience: "Online Retailers", tech_stack: "Next.js, Node.js, PostgreSQL, Redis, Stripe, Elasticsearch, AWS S3", style: "Commerce Scale", constraints: ["Inventory Consistency", "Payment Idempotency", "Cart Abandonment", "Fraud Detection"] }
+  },
+  // 2026 Cutting-Edge Vibes
+  {
+    id: "agentic-ai",
+    name: "Agentic AI System",
+    description: "Multi-agent orchestration with reasoning and tool use",
+    context: { project: "AI Agent Platform", audience: "AI Engineers", tech_stack: "LangChain/LangGraph, OpenAI/Anthropic, Python, Redis, FastAPI, Vector DB", style: "Agent-Native Architecture", constraints: ["Tool Use Validation", "Agent State Management", "Human-in-the-Loop", "Cost Controls"] }
+  },
+  {
+    id: "mcp-native",
+    name: "MCP Native App",
+    description: "Model Context Protocol with resource servers and tools",
+    context: { project: "MCP Application", audience: "AI-First Developers", tech_stack: "TypeScript, MCP SDK, SSE/Stdio transports, Zod schemas, Claude API", style: "Context-Rich AI", constraints: ["MCP Protocol Compliance", "Resource Pagination", "Tool Descriptions", "Error Recovery"] }
+  },
+  {
+    id: "llm-native-backend",
+    name: "LLM-Native Backend",
+    description: "Streaming AI responses with structured generation",
+    context: { project: "AI Backend", audience: "AI Product Teams", tech_stack: "Node.js/Python, OpenAI/Anthropic/Groq, Zod, Server-Sent Events, Upstash", style: "Streaming-First", constraints: ["Structured Outputs", "Streaming JSON", "Token Limits", "Retry Logic"] }
+  },
+  {
+    id: "vector-rag",
+    name: "Vector RAG Pipeline",
+    description: "Embedding-based retrieval with hybrid search",
+    context: { project: "RAG Platform", audience: "ML Engineers", tech_stack: "Pinecone/Weaviate, OpenAI Embeddings, LangChain, PostgreSQL, pgvector", style: "Retrieval-Augmented", constraints: ["Chunking Strategy", "Re-ranking", "Context Window", "Embedding Caching"] }
+  },
+  {
+    id: "autonomous-dev",
+    name: "Autonomous Dev Agent",
+    description: "Self-directed coding with planning and execution",
+    context: { project: "Coding Agent", audience: "Developer Tools", tech_stack: "Claude Code, Aider, GitHub API, Docker, Sandboxed Execution, Tree-sitter", style: "Autonomous Coding", constraints: ["Sandbox Security", "Git Integration", "Test Validation", "Rollback Capability"] }
   }
 ];
 
@@ -238,6 +336,9 @@ export default function ContextForm() {
   const [models, setModels] = useState<Array<{ provider: Provider; models: string[] }>>([]);
   const [modelConfig, setModelConfig] = useState<ModelConfig | null>(null);
   const [loadingModels, setLoadingModels] = useState(true);
+  const [recommendation, setRecommendation] = useState<ModelRecommendation | null>(null);
+  const [loadingRecommendation, setLoadingRecommendation] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   // Auto-scan project on mount
   useEffect(() => {
@@ -258,6 +359,34 @@ export default function ContextForm() {
     }
     scan();
   }, []);
+
+  // Debounced model recommendation — fires when intent is at least 8 chars
+  useEffect(() => {
+    if (intent.trim().length < 8) {
+      setRecommendation(null);
+      return;
+    }
+    setLoadingRecommendation(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/recommend-model", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ intent })
+        });
+        if (res.ok) {
+          const rec = await res.json();
+          setRecommendation(rec);
+        }
+      } catch {
+        // silently fail — just don't show a recommendation
+      } finally {
+        setLoadingRecommendation(false);
+      }
+    }, 800); // 800ms debounce
+    return () => clearTimeout(timer);
+  }, [intent]);
+
   const [compiling, setCompiling] = useState(false);
   const [compilingInstruction, setCompilingInstruction] = useState(false);
   const [fetchingSuggestions, setFetchingSuggestions] = useState(false);
@@ -323,13 +452,19 @@ export default function ContextForm() {
     const search = modelSearch.trim().toLowerCase();
     return currentModels.filter((model) => {
       const legacy = isLegacyModel(model);
+      const isFree = isFreeModel(model, modelConfig?.provider as Provider);
+      
       const includeByMode =
-        modelView === "all" || (modelView === "legacy" ? legacy : isRecommendedModel(model) && !legacy);
+        modelView === "all" || 
+        (modelView === "legacy" ? legacy : 
+         modelView === "free" ? isFree :
+         isRecommendedModel(model) && !legacy);
+
       if (!includeByMode) return false;
       if (!search) return true;
       return model.toLowerCase().includes(search) || formatModelLabel(model).toLowerCase().includes(search);
     });
-  }, [currentModels, modelSearch, modelView]);
+  }, [currentModels, modelSearch, modelView, modelConfig?.provider]);
 
   const groupedFilteredModels = useMemo(() => {
     const groups = new Map<string, string[]>();
@@ -541,11 +676,25 @@ export default function ContextForm() {
           <motion.div
             initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            className="space-y-4"
           >
+            {/* Library Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setLibraryOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surfaceAlt px-4 py-2 text-xs font-medium text-text transition hover:border-accent"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Manage Library
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {VIBE_GALLERY.map((vibe) => (
               <button
-                key={vibe.name}
+                key={vibe.id}
                 type="button"
                 onClick={() => {
                   setContext({
@@ -571,6 +720,7 @@ export default function ContextForm() {
                 </div>
               </button>
             ))}
+            </div>
           </motion.div>
         ) : (
           <>
@@ -614,6 +764,17 @@ export default function ContextForm() {
               </motion.div>
             )}
           </AnimatePresence>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <ModelRecommendationBadge
+            recommendation={recommendation}
+            loading={loadingRecommendation}
+            onApply={(config) => {
+              setModelConfig(config);
+              setModelPickerOpen(false);
+            }}
+          />
         </motion.div>
 
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 relative z-[30]">
@@ -669,13 +830,13 @@ export default function ContextForm() {
                         className="mb-2 w-full rounded-md border border-border bg-surfaceAlt px-2.5 py-2 text-xs text-text outline-none transition focus:border-accent"
                       />
 
-                      <div className="mb-2 flex gap-1.5">
-                        {(["recommended", "all", "legacy"] as ModelViewMode[]).map((mode) => (
+                      <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                        {(["recommended", "free", "all", "legacy"] as ModelViewMode[]).map((mode) => (
                           <button
                             key={mode}
                             type="button"
                             onClick={() => setModelView(mode)}
-                            className={`rounded-md px-2 py-1 text-[10px] uppercase tracking-[0.12em] transition ${
+                            className={`rounded-md px-2 py-1 text-[10px] uppercase tracking-[0.12em] whitespace-nowrap transition ${
                               modelView === mode
                                 ? "border border-accent bg-accent/15 text-accent"
                                 : "border border-border text-muted hover:border-accent/40 hover:text-text"
@@ -966,6 +1127,25 @@ export default function ContextForm() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Vibe Library Modal */}
+      <VibeLibrary
+        isOpen={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        builtInVibes={VIBE_GALLERY}
+        onSelectVibe={(vibe) => {
+          setContext({
+            project: vibe.context.project,
+            audience: vibe.context.audience,
+            techStack: vibe.context.tech_stack,
+            depth: "basic",
+            style: "Modern",
+            constraints: vibe.context.constraints
+          });
+          setLibraryOpen(false);
+          setViewMode("build");
+        }}
+      />
     </motion.section>
   );
 }

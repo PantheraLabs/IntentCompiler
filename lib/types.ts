@@ -8,6 +8,21 @@ export type UserContext = {
   constraints: string[];
 };
 
+export type VibeTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  context: {
+    project: string;
+    audience: string;
+    tech_stack: string;
+    style: string;
+    constraints: string[];
+  };
+  isBuiltIn?: boolean;
+  createdAt?: string;
+};
+
 export type Provider = "openai" | "groq" | "openrouter" | "ollama";
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
