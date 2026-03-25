@@ -34,7 +34,13 @@ ${JSON.stringify(schema)}`
     ],
     modelConfig
   );
-  return JSON.parse(extractAiccContent(response)) as T;
+  const raw = extractAiccContent(response);
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    console.error(`[callJsonTask] JSON parse failed. Raw content: ${raw}`);
+    throw new Error(`Failed to parse LLM response as JSON: ${err instanceof Error ? err.message : "unknown"}`);
+  }
 }
 
 export async function POST(req: Request) {
@@ -104,6 +110,7 @@ export async function POST(req: Request) {
       modelConfig: refinementConfig
     });
   } catch (error) {
+    console.error("[COMPILE_INSTRUCTION_ERROR]", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }

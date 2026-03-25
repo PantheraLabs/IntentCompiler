@@ -205,15 +205,24 @@ export function extractAiccContent(payload: unknown) {
   const parsed = payload as {
     choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
   };
-  const content = parsed.choices?.[0]?.message?.content;
-  if (typeof content === "string") {
-    return content;
-  }
+  let content = parsed.choices?.[0]?.message?.content || "";
+
   if (Array.isArray(content)) {
-    return content
+    content = content
       .map((part) => (part.type === "text" && part.text ? part.text : ""))
       .join("")
       .trim();
   }
-  return "{}";
+
+  if (typeof content !== "string") {
+    return "{}";
+  }
+
+  // Robustly extract JSON from potential markdown wrappers
+  const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (jsonMatch?.[1]) {
+    return jsonMatch[1].trim();
+  }
+
+  return content.trim() || "{}";
 }

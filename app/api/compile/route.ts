@@ -95,6 +95,7 @@ ${JSON.stringify(stepsSchema.schema)}`
 
     return NextResponse.json({ steps: normalized, modelConfig });
   } catch (error) {
+    console.error("[COMPILE_ERROR]", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
