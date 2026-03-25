@@ -24,11 +24,12 @@ const stepsSchema = {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["id", "role", "task"],
+          required: ["id", "role", "task", "status"],
           properties: {
             id: { type: "integer" },
             role: { type: "string" },
-            task: { type: "string" }
+            task: { type: "string" },
+            status: { type: "string", enum: ["idle", "running", "success", "error"] }
           }
         }
       }
