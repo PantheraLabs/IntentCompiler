@@ -77,6 +77,13 @@ const FREE_MODELS: Record<
   openai: [] // No free models
 };
 
+export function isFreeModel(model: string, provider: Provider): boolean {
+  if (provider === "ollama") return true;
+  if (provider === "groq") return true;
+  if (model.toLowerCase().includes(":free")) return true;
+  return false;
+}
+
 // Intent signal analysis — runs locally, no LLM needed
 export function analyzeIntent(intent: string): IntentComplexity {
   const text = intent.toLowerCase().trim();
@@ -178,8 +185,8 @@ export function buildRecommendation(
     const chosen = match ?? candidates[0];
     if (!chosen) continue;
 
-    const modelId = provider === "groq" ? chosen.model : chosen.model;
-    const isFree = provider !== "openai";
+    const modelId = chosen.model;
+    const isFree = isFreeModel(modelId, provider);
 
     if (!best) {
       best = { provider, model: modelId, isFree };

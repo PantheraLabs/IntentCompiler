@@ -23,7 +23,7 @@ export type VibeTemplate = {
   createdAt?: string;
 };
 
-export type Provider = "openai" | "groq" | "openrouter" | "ollama";
+export type Provider = "groq" | "openrouter" | "ollama";
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
 

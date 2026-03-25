@@ -7,10 +7,9 @@ export type AICCMessage = {
 };
 
 const MODEL_OPTIONS: Record<Provider, string[]> = {
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4o-mini"],
   groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
-  openrouter: ["openrouter/free"],
-  ollama: ["llama3", "mistral", "phi3"] // Fallback if fetch fails
+  openrouter: [],
+  ollama: [] // No fallbacks - show actual models only
 };
 
 let groqModelCache: { models: string[]; expiresAt: number } | null = null;
@@ -41,7 +40,6 @@ function filterTextModels(models: string[]) {
 }
 
 function hasProviderKey(provider: Provider) {
-  if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
   if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
   if (provider === "openrouter") return Boolean(process.env.OPENROUTER_API_KEY);
   if (provider === "ollama") return true; // Local provider, assume reachable or fail gracefully
@@ -49,8 +47,8 @@ function hasProviderKey(provider: Provider) {
 }
 
 export async function getAvailableProviders(): Promise<Provider[]> {
-  // Cost-priority order (cheaper first): Ollama -> OpenRouter -> Groq -> OpenAI.
-  const priority: Provider[] = ["ollama", "openrouter", "groq", "openai"];
+  // Cost-priority order (cheaper first): Ollama -> OpenRouter -> Groq.
+  const priority: Provider[] = ["ollama", "openrouter", "groq"];
   const available: Provider[] = [];
   
   for (const provider of priority) {
@@ -59,6 +57,14 @@ export async function getAvailableProviders(): Promise<Provider[]> {
       const models = await fetchOllamaModels();
       if (models.length > 0) {
         available.push(provider);
+      }
+    } else if (provider === "openrouter") {
+      // Only include OpenRouter if it has API key AND free models
+      if (hasProviderKey(provider)) {
+        const models = await fetchOpenRouterModels();
+        if (models.length > 0) {
+          available.push(provider);
+        }
       }
     } else if (hasProviderKey(provider)) {
       available.push(provider);
@@ -72,7 +78,7 @@ export async function assertAnyProviderKey() {
   const providers = await getAvailableProviders();
   if (!providers.length) {
     throw new Error(
-      "No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama."
+      "No model provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama."
     );
   }
 }
@@ -131,7 +137,7 @@ async function fetchOllamaModels() {
 
 async function fetchOpenRouterModels() {
   if (!process.env.OPENROUTER_API_KEY) {
-    return MODEL_OPTIONS.openrouter;
+    return [];
   }
   if (openRouterModelCache && Date.now() < openRouterModelCache.expiresAt) {
     return openRouterModelCache.models;
@@ -146,7 +152,7 @@ async function fetchOpenRouterModels() {
     });
 
     if (!response.ok) {
-      return MODEL_OPTIONS.openrouter;
+      return [];
     }
 
     const payload = (await response.json()) as {
@@ -165,21 +171,24 @@ async function fetchOpenRouterModels() {
         const prompt = Number(pricing.prompt ?? "1");
         const completion = Number(pricing.completion ?? "1");
         const request = Number(pricing.request ?? "1");
-        return prompt === 0 && completion === 0 && request === 0;
+        const isFree = prompt === 0 && completion === 0 && request === 0;
+        
+        // Filter out expiring models
+        if (isFree && model.id?.includes("trinity-large-preview")) return false;
+        
+        return isFree;
       })
       .map((model) => model.id?.trim())
       .filter((id): id is string => Boolean(id));
 
-    const deduped = Array.from(new Set(["openrouter/free", ...freeModelIds]));
-    const filtered = filterTextModels(deduped);
-    const resolved = filtered.length ? filtered : MODEL_OPTIONS.openrouter;
+    const filtered = filterTextModels(freeModelIds);
     openRouterModelCache = {
-      models: resolved,
+      models: filtered,
       expiresAt: Date.now() + 5 * 60 * 1000
     };
-    return resolved;
+    return filtered;
   } catch {
-    return MODEL_OPTIONS.openrouter;
+    return [];
   }
 }
 
@@ -218,7 +227,7 @@ export async function getUniqueModelsByProvider(providers: Provider[]) {
 export async function getDefaultProvider(): Promise<Provider> {
   const providers = await getAvailableProviders();
   if (!providers.length) {
-    throw new Error("No model provider configured. Set OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama.");
+    throw new Error("No model provider configured. Set GROQ_API_KEY, OPENROUTER_API_KEY, or use Ollama.");
   }
   return providers[0];
 }
@@ -307,15 +316,7 @@ export async function callAICC(messages: AICCMessage[], config: string | Partial
     });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY environment variable.");
-  }
-
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return client.chat.completions.create({
-    model: resolved.model,
-    messages
-  });
+  throw new Error(`Unsupported provider: ${resolved.provider}`);
 }
 
 export function extractAiccContent(payload: unknown) {

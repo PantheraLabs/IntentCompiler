@@ -96,12 +96,21 @@ Return exactly 2 alternatives (different providers or models). Alternatives must
 Select the best model from the catalog for this intent. Consider complexity, domain, and cost.`;
 
     // Use a fast, free model (Groq 8b) to make the routing decision
-    // This is intentionally a lightweight call — fast recommendations, not expensive
+    if (availableProviders.length === 0) {
+       return NextResponse.json({ error: "No providers configured." }, { status: 400 });
+    }
+
     const routingModel = availableProviders.includes("groq")
       ? { provider: "groq" as Provider, model: "llama-3.1-8b-instant" }
       : availableProviders.includes("openrouter") 
         ? { provider: "openrouter" as Provider, model: "google/gemma-3-12b" }
         : { provider: availableProviders[0], model: modelsByProvider[availableProviders[0]]?.[0] ?? "" };
+
+    if (!routingModel.model) {
+      // Fallback to internal recommendation if no valid LLM model is found to even make the routing decision
+      const fallback = buildRecommendation(intent, availableProviders, modelsByProvider as any);
+      return NextResponse.json(fallback);
+    }
 
     const raw = await callAICC(
       [
@@ -125,17 +134,19 @@ Select the best model from the catalog for this intent. Consider complexity, dom
     // Fallback: use local heuristics from modelRouter.ts
     console.error("LLM routing failed, falling back to heuristics:", err);
     try {
-      const body = (await req.clone().json()) as RecommendRequest;
+      const resp = await req.clone().json();
+      const intent = resp.intent;
       const availableProviders = await getAvailableProviders();
-      const modelsByProvider: Record<Provider, string[]> = {} as Record<Provider, string[]>;
+      const modelsByProvider: Record<string, string[]> = {};
       await Promise.all(
         availableProviders.map(async (p: Provider) => {
           modelsByProvider[p] = await getModelsForProvider(p);
         })
       );
-      const fallback = buildRecommendation(body.intent, availableProviders, modelsByProvider);
+      const fallback = buildRecommendation(intent, availableProviders, modelsByProvider as any);
       return NextResponse.json(fallback);
-    } catch {
+    } catch (innerErr) {
+      console.error("Fallback also failed:", innerErr);
       return NextResponse.json({ error: "Model recommendation failed." }, { status: 500 });
     }
   }
