@@ -6,12 +6,14 @@ import { jsPDF } from "jspdf";
 import StepCard from "@/components/StepCard";
 import ExecutionPanel from "@/components/ExecutionPanel";
 import CompactDropdown from "@/components/ui/CompactDropdown";
-import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";
+import { resolveExecutionOrder, createExecutionContext, getNextSteps, type ExecutionContext } from "@/lib/executionEngine";
+import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
 
 type WorkflowContainerProps = {
-  intent: string;
-  context: UserContext;
-  initialSteps: WorkflowStep[];
+  workflow?: Workflow;
+  intent?: string;
+  context?: UserContext;
+  initialSteps?: WorkflowStep[];
   modelConfig: ModelConfig;
 };
 
@@ -41,9 +43,14 @@ type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" 
     error?: string;
   };
 
-export default function WorkflowContainer({ intent, context, initialSteps, modelConfig }: WorkflowContainerProps) {
+export default function WorkflowContainer({ workflow, intent: propIntent, context: propContext, initialSteps, modelConfig }: WorkflowContainerProps) {
+  // Support both new workflow format and legacy props
+  const resolvedIntent = workflow?.intent || propIntent || "";
+  const resolvedContext = workflow?.context || propContext || { project: "", audience: "", depth: "basic", style: "", constraints: [] };
+  const resolvedSteps = workflow?.steps || initialSteps || [];
+  
   const [steps, setSteps] = useState<WorkflowStep[]>(
-    initialSteps.map((step) => ({
+    resolvedSteps.map((step) => ({
       ...step,
       status: step.status ?? "idle",
       output: step.output ?? "",
@@ -56,7 +63,11 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
       warnings: step.warnings ?? []
     }))
   );
-  const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
+  const [executionContext, setExecutionContext] = useState<ExecutionContext | null>(
+    workflow ? createExecutionContext(workflow) : null
+  );
+  const [currentStepId, setCurrentStepId] = useState<string | null>(null);
+  const [stepOutputs, setStepOutputs] = useState<Map<string, string>>(new Map());
   const [runningAll, setRunningAll] = useState(false);
   const [error, setError] = useState("");
 
@@ -73,7 +84,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
     if (!step) return;
 
     setError("");
-    setCurrentStepIndex(index);
+    setCurrentStepId(step.id);
     patchStep(index, { status: "running", error: "" });
 
     try {
@@ -82,9 +93,10 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           step,
-          userContext: context,
+          userContext: resolvedContext,
           modelConfig,
-          previousOutputs: steps.slice(0, index).map((s) => s.output || "").filter(Boolean)
+          previousOutputs: steps.slice(0, index).map((s) => s.output || "").filter(Boolean),
+          stepOutputs: Object.fromEntries(stepOutputs)
         })
       });
 
@@ -113,7 +125,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
       setError(message);
       throw err;
     } finally {
-      setCurrentStepIndex(null);
+      setCurrentStepId(null);
     }
   };
 
@@ -152,9 +164,8 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
     setSteps((prev) =>
       prev
         .filter((_, i) => i !== index)
-        .map((step, idx) => ({
-          ...step,
-          id: idx + 1
+        .map((step) => ({
+          ...step
         }))
     );
   };
@@ -165,7 +176,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
     setSteps((prev) => {
       const next = [...prev];
       [next[index], next[target]] = [next[target], next[index]];
-      return next.map((step, idx) => ({ ...step, id: idx + 1 }));
+      return next.map((step) => ({ ...step }));
     });
   };
 
@@ -183,12 +194,12 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
   };
 
   // Instruction Generator State
-  const [instructionIntent, setInstructionIntent] = useState(intent);
+  const [instructionIntent, setInstructionIntent] = useState(resolvedIntent);
   const [instructionContext, setInstructionContext] = useState({
-    project: context.project,
-    audience: context.audience,
-    style: context.style,
-    constraints: context.constraints || []
+    project: resolvedContext.project,
+    audience: resolvedContext.audience,
+    style: resolvedContext.style,
+    constraints: resolvedContext.constraints || []
   });
   const [targetFile, setTargetFile] = useState<InstructionTarget>("claude");
   const [generatedMarkdown, setGeneratedMarkdown] = useState("");
@@ -259,12 +270,12 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
             {modelConfig.provider}:{modelConfig.model}
           </span>
         </div>
-        <p className="text-lg font-medium text-text leading-relaxed">{intent}</p>
+        <p className="text-lg font-medium text-text leading-relaxed">{resolvedIntent}</p>
       </section>
 
       <ExecutionPanel
-        running={runningAll || currentStepIndex !== null}
-        currentStepIndex={currentStepIndex}
+        running={runningAll || currentStepId !== null}
+        currentStepIndex={currentStepId ? steps.findIndex(s => s.id === currentStepId) : null}
         totalSteps={steps.length}
         completed={completedCount}
         onRunAll={runAll}
@@ -282,7 +293,7 @@ export default function WorkflowContainer({ intent, context, initialSteps, model
             step={step}
             index={index}
             total={steps.length}
-            isCurrent={currentStepIndex === index}
+            isCurrent={currentStepId === step.id}
             onRun={() => runStep(index)}
             onRerun={() => rerunStep(index)}
             onSkip={() => skipStep(index)}

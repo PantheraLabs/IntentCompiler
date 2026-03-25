@@ -50,7 +50,8 @@ const buttonVariants: Variants = {
 };
 
 type CompileResponse = {
-  steps: WorkflowStep[];
+  workflow?: { id: string; steps: WorkflowStep[] };
+  steps?: WorkflowStep[];
   modelConfig: ModelConfig;
   error?: string;
 };
@@ -213,17 +214,17 @@ const VIBE_GALLERY = [
   {
     name: "Shadcn Vibe",
     description: "Modern, clean, and interactive",
-    context: { project: "Next.js App", tech_stack: "Next.js 15, Tailwind CSS, Shadcn/UI, Lucide", style: "Neon Minimalist", constraints: ["Strict TypeScript", "Accessibility First"] }
+    context: { project: "Next.js App", audience: "Frontend Devs", tech_stack: "Next.js 15, Tailwind CSS, Shadcn/UI, Lucide", style: "Neon Minimalist", constraints: ["Strict TypeScript", "Accessibility First"] }
   },
   {
     name: "Python FastVibe",
     description: "FastAPI + Pydantic performance",
-    context: { project: "Python Backend", tech_stack: "FastAPI, Pydantic v2, PostgreSQL, Redis", style: "Concise & Scalable", constraints: ["Async First", "Type Hinting"] }
+    context: { project: "Python Backend", audience: "Data Engineers", tech_stack: "FastAPI, Pydantic v2, PostgreSQL, Redis", style: "Concise & Scalable", constraints: ["Async First", "Type Hinting"] }
   },
   {
     name: "The T3 Vibe",
     description: "Type-safe fullstack speed",
-    context: { project: "T3 Stack App", tech_stack: "Next.js, tRPC, Prisma, Tailwind", style: "Safety First", constraints: ["Zod Validation", "End-to-end Types"] }
+    context: { project: "T3 Stack App", audience: "Fullstack Teams", tech_stack: "Next.js, tRPC, Prisma, Tailwind", style: "Safety First", constraints: ["Zod Validation", "End-to-end Types"] }
   }
 ];
 
@@ -408,17 +409,21 @@ export default function ContextForm() {
       });
 
       const data = (await res.json()) as CompileResponse;
-      if (!res.ok || !data.steps?.length) {
+      if (!res.ok || (!data.steps?.length && !data.workflow?.steps?.length)) {
         throw new Error(data.error || "Compilation failed.");
       }
+
+      // Support both new workflow format and legacy format
+      const workflowData = data.workflow || {
+        id: crypto.randomUUID(),
+        steps: data.steps || []
+      };
 
       sessionStorage.setItem(
         "intentCompilerWorkflow",
         JSON.stringify({
-          intent,
-          context: payload.context,
-          modelConfig: data.modelConfig,
-          steps: data.steps
+          workflow: workflowData,
+          modelConfig: data.modelConfig
         })
       );
 

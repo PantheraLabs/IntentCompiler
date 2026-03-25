@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  slug        String   @unique // For shareable URLs (e.g., "abc123xyz")
+  name        String
+  intent      String   @db.Text
+  context     Json     // UserContext
+  steps       Json     // WorkflowStep[]
+  edges       Json     // WorkflowEdge[]
+  version     Int      @default(1)
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  ownerId     String?
+  runs        WorkflowRun[]
+  
+  @@index([slug])
+  @@index([ownerId])
+  @@index([isPublic])
+}
+
+model WorkflowRun {
+  id            String   @id @default(uuid())
+  workflowId    String
+  workflow      Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  // Execution state
+  stepResults   Json     // Map<stepId, { output, status, error, warnings, timestamp }>
+  executionPath String[] // Ordered array of step IDs that were executed
+  status        RunStatus @default(running)
+  
+  // Metadata
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  cost          Float?   // Estimated API cost in USD
+  
+  @@index([workflowId])
+  @@index([status])
+}
+
+enum RunStatus {
+  running
+  completed
+  failed
+  cancelled
+}

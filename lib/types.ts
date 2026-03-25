@@ -18,10 +18,10 @@ export type ModelConfig = {
 };
 
 export type WorkflowStep = {
-  id: number;
+  id: string;
   role: string;
   task: string;
-  stepType?: "research" | "write" | "code" | "analysis" | "plan";
+  stepType?: "research" | "write" | "code" | "analysis" | "plan" | "condition" | "loop";
   status?: ExecutionStatus;
   output?: string;
   error?: string;
@@ -37,6 +37,41 @@ export type WorkflowStep = {
     warnings: string[];
     timestamp: string;
   }>;
+  // Branching and flow control
+  condition?: {
+    if: string;
+    then: string;
+    else: string;
+  };
+  loop?: {
+    for: string;
+    body: string[];
+    maxIterations: number;
+  };
+  dependencies?: string[];
+  // Tool execution
+  tool?: {
+    mode: "llm" | "shell" | "http" | "db" | "search" | "file";
+    config: Record<string, unknown>;
+  };
+};
+
+export type WorkflowEdge = {
+  from: string;
+  to: string;
+  condition?: string;
+};
+
+export type Workflow = {
+  id: string;
+  name: string;
+  intent: string;
+  context: UserContext;
+  steps: WorkflowStep[];
+  edges: WorkflowEdge[];
+  version: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type StoredWorkflow = {

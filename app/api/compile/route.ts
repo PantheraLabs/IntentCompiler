@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { resolveModelConfig } from "@/lib/aicc";
 import { callJsonWithValidation } from "@/lib/jsonGuard";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
-import type { ModelConfig, UserContext } from "@/lib/types";
+import { randomUUID } from "crypto";
+import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
 
 type CompileRequest = {
   intent: string;
@@ -100,24 +101,45 @@ ${JSON.stringify(stepsSchema.schema)}`
       modelConfig
     );
 
-    const normalized = parsed.steps.slice(0, 5).map((step, index) => ({
-      id: index + 1,
+    // Generate steps with UUID-based IDs and create workflow structure
+    const stepIds: string[] = parsed.steps.slice(0, 5).map(() => randomUUID());
+    const steps: WorkflowStep[] = parsed.steps.slice(0, 5).map((step, index) => ({
+      id: stepIds[index],
       role: String(step.role || "operator"),
       task: String(step.task || ""),
       status: "idle" as const,
-      stepType: step.stepType || "analysis",
-      outputFormat: step.outputFormat || "markdown",
+      stepType: (step.stepType || "analysis") as WorkflowStep["stepType"],
+      outputFormat: (step.outputFormat || "markdown") as WorkflowStep["outputFormat"],
       mustInclude: Array.isArray(step.mustInclude) ? step.mustInclude : [],
       mustAvoid: Array.isArray(step.mustAvoid) ? step.mustAvoid : [],
       acceptanceTests: Array.isArray(step.acceptanceTests) ? step.acceptanceTests : [],
-      qualityBar: typeof step.qualityBar === "string" ? step.qualityBar : ""
+      qualityBar: typeof step.qualityBar === "string" ? step.qualityBar : "",
+      dependencies: index > 0 ? [stepIds[index - 1]!] : undefined
     }));
 
-    if (normalized.length < 3) {
+    if (steps.length < 3) {
       return NextResponse.json({ error: "Failed to compile enough steps." }, { status: 500 });
     }
 
-    return NextResponse.json({ steps: normalized, modelConfig });
+    // Create sequential edges between steps
+    const edges = steps.slice(0, -1).map((step, index) => ({
+      from: step.id,
+      to: steps[index + 1]?.id || step.id
+    }));
+
+    const workflow: Workflow = {
+      id: randomUUID(),
+      name: `Workflow for: ${intent.slice(0, 50)}${intent.length > 50 ? "..." : ""}`,
+      intent,
+      context,
+      steps,
+      edges,
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    return NextResponse.json({ workflow, steps, modelConfig });
   } catch (error) {
     console.error("[COMPILE_ERROR]", error);
     const message = error instanceof Error ? error.message : "Unknown error";
