@@ -34,34 +34,34 @@ function OutputRenderer({ output, format }: { output: string; format: string }) 
   // JSON format
   if (format === "json") {
     return (
-      <pre className="overflow-x-auto rounded bg-black/40 p-3 font-mono text-xs text-cyan-300">
-        {(() => {
-          try {
-            return JSON.stringify(JSON.parse(output), null, 2);
-          } catch {
-            return output;
-          }
-        })()}
-      </pre>
+      <div className="overflow-x-auto rounded-lg bg-slate-900/50 border border-slate-700/50">
+        <pre className="p-4 font-mono text-xs text-cyan-300 leading-relaxed">
+          {(() => {
+            try {
+              return JSON.stringify(JSON.parse(output), null, 2);
+            } catch {
+              return output;
+            }
+          })()}
+        </pre>
+      </div>
     );
   }
 
   // Plain text format - no markdown parsing
   if (format === "plain") {
     return (
-      <pre className="whitespace-pre-wrap font-mono text-sm text-text/90">
+      <div className="whitespace-pre-wrap font-mono text-sm text-text/90 leading-relaxed p-2">
         {output}
-      </pre>
+      </div>
     );
   }
 
   // Bullets format - convert • to proper markdown list if needed
   if (format === "bullets") {
-    // Convert unicode bullets to markdown list syntax for better rendering
     const processedOutput = output
       .split('\n')
       .map(line => {
-        // Replace unicode bullet with markdown bullet
         if (line.trim().startsWith('•')) {
           return line.replace(/^\s*•\s*/, '- ');
         }
@@ -71,52 +71,112 @@ function OutputRenderer({ output, format }: { output: string; format: string }) 
     
     return (
       <div className="prose prose-invert prose-sm max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={{
+            ul: ({ children }) => (
+              <ul className="space-y-2 my-2">{children}</ul>
+            ),
+            li: ({ children }) => (
+              <li className="flex items-start gap-2 text-text/90">
+                <span className="text-accent mt-1.5">•</span>
+                <span className="flex-1">{children}</span>
+              </li>
+            ),
+          }}
+        >
           {processedOutput}
         </ReactMarkdown>
       </div>
     );
   }
 
-  // Table format - use markdown table rendering
+  // Table format - use markdown table rendering with enhanced styling
   if (format === "table") {
     return (
-      <div className="prose prose-invert prose-sm max-w-none">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            table: ({ children }) => (
-              <div className="overflow-x-auto my-2">
-                <table className="min-w-full text-xs border-collapse border border-border/50">{children}</table>
-              </div>
-            ),
-            thead: ({ children }) => <thead className="bg-surfaceAlt/80">{children}</thead>,
-            th: ({ children }) => <th className="border border-border/50 px-3 py-1.5 text-left font-semibold text-text/90 text-[10px] uppercase tracking-wider">{children}</th>,
-            td: ({ children }) => <td className="border border-border/40 px-3 py-1.5 text-muted">{children}</td>,
-            tr: ({ children }) => <tr className="even:bg-surfaceAlt/30">{children}</tr>,
-          }}
-        >
-          {output}
-        </ReactMarkdown>
+      <div className="overflow-hidden rounded-lg border border-border/60 bg-surfaceAlt/20">
+        <div className="overflow-x-auto">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              table: ({ children }) => (
+                <table className="w-full text-sm">{children}</table>
+              ),
+              thead: ({ children }) => (
+                <thead className="bg-surfaceAlt/80 border-b border-border/50">{children}</thead>
+              ),
+              th: ({ children }) => (
+                <th className="px-4 py-3 text-left font-semibold text-text/90 text-xs uppercase tracking-wider">
+                  {children}
+                </th>
+              ),
+              tbody: ({ children }) => <tbody className="divide-y divide-border/30">{children}</tbody>,
+              td: ({ children }) => (
+                <td className="px-4 py-2.5 text-text/80 text-sm">{children}</td>
+              ),
+              tr: ({ children }) => <tr className="hover:bg-surfaceAlt/40 transition-colors">{children}</tr>,
+            }}
+          >
+            {output}
+          </ReactMarkdown>
+        </div>
       </div>
     );
   }
 
-  // Default markdown format
+  // Default markdown format with enhanced styling
   return (
     <div className="prose prose-invert prose-sm max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          h1: ({ children }) => <h1 className="text-xl font-bold text-text mb-3 mt-4">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-lg font-semibold text-text/90 mb-2 mt-4 border-b border-border/30 pb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-base font-medium text-text/85 mb-2 mt-3">{children}</h3>,
+          p: ({ children }) => <p className="text-text/80 leading-relaxed mb-3">{children}</p>,
+          ul: ({ children }) => <ul className="space-y-1.5 my-2 ml-4">{children}</ul>,
+          ol: ({ children }) => <ol className="space-y-1.5 my-2 ml-4 list-decimal">{children}</ol>,
+          li: ({ children }) => (
+            <li className="text-text/80 flex items-start gap-2">
+              <span className="text-accent mt-1">•</span>
+              <span className="flex-1">{children}</span>
+            </li>
+          ),
           table: ({ children }) => (
-            <div className="overflow-x-auto my-2">
-              <table className="min-w-full text-xs border-collapse border border-border/50">{children}</table>
+            <div className="overflow-hidden rounded-lg border border-border/60 my-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">{children}</table>
+              </div>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-surfaceAlt/80">{children}</thead>,
-          th: ({ children }) => <th className="border border-border/50 px-3 py-1.5 text-left font-semibold text-text/90 text-[10px] uppercase tracking-wider">{children}</th>,
-          td: ({ children }) => <td className="border border-border/40 px-3 py-1.5 text-muted">{children}</td>,
-          tr: ({ children }) => <tr className="even:bg-surfaceAlt/30">{children}</tr>,
+          thead: ({ children }) => (
+            <thead className="bg-surfaceAlt/80 border-b border-border/50">{children}</thead>
+          ),
+          th: ({ children }) => (
+            <th className="px-4 py-3 text-left font-semibold text-text/90 text-xs uppercase tracking-wider">
+              {children}
+            </th>
+          ),
+          tbody: ({ children }) => <tbody className="divide-y divide-border/30">{children}</tbody>,
+          td: ({ children }) => <td className="px-4 py-2.5 text-text/80 text-sm">{children}</td>,
+          tr: ({ children }) => <tr className="hover:bg-surfaceAlt/40 transition-colors">{children}</tr>,
+          code: ({ children }) => (
+            <code className="px-1.5 py-0.5 rounded bg-surfaceAlt/80 text-accent text-xs font-mono">
+              {children}
+            </code>
+          ),
+          pre: ({ children }) => (
+            <pre className="rounded-lg bg-slate-900/50 p-4 overflow-x-auto text-xs font-mono text-cyan-300 my-3">
+              {children}
+            </pre>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-accent/50 pl-4 italic text-text/70 my-3">
+              {children}
+            </blockquote>
+          ),
+          strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
+          em: ({ children }) => <em className="italic text-text/90">{children}</em>,
         }}
       >
         {output}
