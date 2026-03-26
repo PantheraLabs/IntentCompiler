@@ -29,6 +29,102 @@ const statusClass: Record<NonNullable<WorkflowStep["status"]>, string> = {
   error: "border-rose-400/50 bg-rose-400/10"
 };
 
+// Output renderer component that handles different formats
+function OutputRenderer({ output, format }: { output: string; format: string }) {
+  // JSON format
+  if (format === "json") {
+    return (
+      <pre className="overflow-x-auto rounded bg-black/40 p-3 font-mono text-xs text-cyan-300">
+        {(() => {
+          try {
+            return JSON.stringify(JSON.parse(output), null, 2);
+          } catch {
+            return output;
+          }
+        })()}
+      </pre>
+    );
+  }
+
+  // Plain text format - no markdown parsing
+  if (format === "plain") {
+    return (
+      <pre className="whitespace-pre-wrap font-mono text-sm text-text/90">
+        {output}
+      </pre>
+    );
+  }
+
+  // Bullets format - convert • to proper markdown list if needed
+  if (format === "bullets") {
+    // Convert unicode bullets to markdown list syntax for better rendering
+    const processedOutput = output
+      .split('\n')
+      .map(line => {
+        // Replace unicode bullet with markdown bullet
+        if (line.trim().startsWith('•')) {
+          return line.replace(/^\s*•\s*/, '- ');
+        }
+        return line;
+      })
+      .join('\n');
+    
+    return (
+      <div className="prose prose-invert prose-sm max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {processedOutput}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  // Table format - use markdown table rendering
+  if (format === "table") {
+    return (
+      <div className="prose prose-invert prose-sm max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            table: ({ children }) => (
+              <div className="overflow-x-auto my-2">
+                <table className="min-w-full text-xs border-collapse border border-border/50">{children}</table>
+              </div>
+            ),
+            thead: ({ children }) => <thead className="bg-surfaceAlt/80">{children}</thead>,
+            th: ({ children }) => <th className="border border-border/50 px-3 py-1.5 text-left font-semibold text-text/90 text-[10px] uppercase tracking-wider">{children}</th>,
+            td: ({ children }) => <td className="border border-border/40 px-3 py-1.5 text-muted">{children}</td>,
+            tr: ({ children }) => <tr className="even:bg-surfaceAlt/30">{children}</tr>,
+          }}
+        >
+          {output}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  // Default markdown format
+  return (
+    <div className="prose prose-invert prose-sm max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-2">
+              <table className="min-w-full text-xs border-collapse border border-border/50">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-surfaceAlt/80">{children}</thead>,
+          th: ({ children }) => <th className="border border-border/50 px-3 py-1.5 text-left font-semibold text-text/90 text-[10px] uppercase tracking-wider">{children}</th>,
+          td: ({ children }) => <td className="border border-border/40 px-3 py-1.5 text-muted">{children}</td>,
+          tr: ({ children }) => <tr className="even:bg-surfaceAlt/30">{children}</tr>,
+        }}
+      >
+        {output}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 export default function StepCard({
   step,
   index,
@@ -510,34 +606,7 @@ export default function StepCard({
             {status === "running" ? (
               <div className="h-24 animate-pulse rounded bg-white/5" />
             ) : step.output ? (
-              <div className="prose prose-invert prose-sm max-w-none">
-                {step.outputFormat === "json" ? (
-                  <pre className="overflow-x-auto rounded bg-black/40 p-3 font-mono text-xs text-cyan-300">
-                    {(() => {
-                      try {
-                        return JSON.stringify(JSON.parse(step.output), null, 2);
-                      } catch {
-                        return step.output;
-                      }
-                    })()}
-                  </pre>
-                ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      table: ({ children }) => (
-                        <div className="overflow-x-auto my-2">
-                          <table className="min-w-full text-xs border-collapse border border-border/50">{children}</table>
-                        </div>
-                      ),
-                      thead: ({ children }) => <thead className="bg-surfaceAlt/80">{children}</thead>,
-                      th: ({ children }) => <th className="border border-border/50 px-3 py-1.5 text-left font-semibold text-text/90 text-[10px] uppercase tracking-wider">{children}</th>,
-                      td: ({ children }) => <td className="border border-border/40 px-3 py-1.5 text-muted">{children}</td>,
-                      tr: ({ children }) => <tr className="even:bg-surfaceAlt/30">{children}</tr>,
-                    }}
-                  >{step.output}</ReactMarkdown>
-                )}
-              </div>
+              <OutputRenderer output={step.output} format={step.outputFormat || "markdown"} />
             ) : (
               <span className="italic text-muted/60">No output yet.</span>
             )}
