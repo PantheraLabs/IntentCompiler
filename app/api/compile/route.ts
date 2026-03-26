@@ -20,18 +20,19 @@ const stepsSchema = {
     properties: {
       steps: {
         type: "array",
-        minItems: 3,
-        maxItems: 5,
+        minItems: 4,
+        maxItems: 6,
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["id", "role", "task", "status"],
+          required: ["id", "role", "task", "status", "stepType", "sectionName"],
           properties: {
             id: { type: "integer" },
             role: { type: "string" },
             task: { type: "string" },
             status: { type: "string", enum: ["idle", "running", "success", "error"] },
-            stepType: { type: "string" },
+            stepType: { type: "string", enum: ["instruction_role", "instruction_context", "instruction_rules", "instruction_assembly", "analysis"] },
+            sectionName: { type: "string" },
             outputFormat: { type: "string" },
             mustInclude: { type: "array", items: { type: "string" } },
             mustAvoid: { type: "array", items: { type: "string" } },
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as CompileRequest;
     const intent = body.intent?.trim();
     const context = body.context;
-    const modelConfig = resolveModelConfig(body.modelConfig, "structured");
+    const modelConfig = await resolveModelConfig(body.modelConfig, "structured");
 
     if (!intent || !context) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
@@ -64,10 +65,19 @@ style: ${context.style || ""}
 constraints: ${(context.constraints || []).join(", ")}`;
 
     const task = `TASK:
-Generate a 3-5 step executable workflow from the user intent and context.
-Return JSON with { "steps": [{ "id": number, "role": string, "task": string, "status": "idle", "stepType": "research|write|code|analysis|plan", "outputFormat": "markdown|bullets|json|table|plain", "mustInclude": string[], "mustAvoid": string[], "acceptanceTests": string[], "qualityBar": string }] }.
-Ensure steps are in logical sequence and non-redundant.
-Acceptance criteria must be concrete and testable. Keep lists short (1-4 items).
+Generate a 4-6 step workflow that progressively builds an AI instruction file (like CLAUDE.md or .cursorrules) from the user intent and context.
+Each step should generate one section of the final instruction file.
+
+Section types to generate:
+- instruction_role: Define the AI's role and responsibilities for this project
+- instruction_context: Define project overview, tech stack, and architecture
+- instruction_rules: Define rules, constraints, and execution guidelines  
+- instruction_assembly: Combine all previous sections into final instruction file
+
+Return JSON with { "steps": [{ "id": number, "role": string, "task": string (generate the markdown content for this section), "status": "idle", "stepType": "instruction_role|instruction_context|instruction_rules|instruction_assembly", "sectionName": string (e.g., "Role", "Context", "Rules", "Final"), "outputFormat": "markdown", "mustInclude": string[], "mustAvoid": string[], "acceptanceTests": string[], "qualityBar": string }] }.
+
+Ensure steps build on each other logically. The final assembly step combines all previous outputs into a complete, formatted instruction file.
+Acceptance criteria must ensure each section is complete and the final file is ready to use.
 
 INTENT:
 ${intent}`;
@@ -80,6 +90,7 @@ ${intent}`;
         status?: "idle" | "running" | "success" | "error";
         outputFormat?: string;
         stepType?: string;
+        sectionName?: string;
         mustInclude?: string[];
         mustAvoid?: string[];
         acceptanceTests?: string[];
@@ -102,14 +113,15 @@ ${JSON.stringify(stepsSchema.schema)}`
     );
 
     // Generate steps with UUID-based IDs and create workflow structure
-    const stepIds: string[] = parsed.steps.slice(0, 5).map(() => randomUUID());
-    const steps: WorkflowStep[] = parsed.steps.slice(0, 5).map((step, index) => ({
+    const stepIds: string[] = parsed.steps.slice(0, 6).map(() => randomUUID());
+    const steps: WorkflowStep[] = parsed.steps.slice(0, 6).map((step, index) => ({
       id: stepIds[index],
-      role: String(step.role || "operator"),
+      role: String(step.role || "instruction_compiler"),
       task: String(step.task || ""),
       status: "idle" as const,
       stepType: (step.stepType || "analysis") as WorkflowStep["stepType"],
-      outputFormat: (step.outputFormat || "markdown") as WorkflowStep["outputFormat"],
+      sectionName: step.sectionName || `Section ${index + 1}`,
+      outputFormat: "markdown" as const,
       mustInclude: Array.isArray(step.mustInclude) ? step.mustInclude : [],
       mustAvoid: Array.isArray(step.mustAvoid) ? step.mustAvoid : [],
       acceptanceTests: Array.isArray(step.acceptanceTests) ? step.acceptanceTests : [],
@@ -117,7 +129,7 @@ ${JSON.stringify(stepsSchema.schema)}`
       dependencies: index > 0 ? [stepIds[index - 1]!] : undefined
     }));
 
-    if (steps.length < 3) {
+    if (steps.length < 4) {
       return NextResponse.json({ error: "Failed to compile enough steps." }, { status: 500 });
     }
 

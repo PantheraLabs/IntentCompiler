@@ -56,11 +56,10 @@ export async function callJsonWithValidation<T>(
       jsonStr = codeBlockMatch[1];
     }
     
-    // Clean up common issues
+    // Clean up common issues - be careful not to corrupt valid JSON strings
     jsonStr = jsonStr
-      .replace(/^[^{\[]*|[\]]}[^\]]*$/g, '') // Remove text before/after JSON
-      .replace(/,\s*}/g, '}') // Remove trailing commas
-      .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+      .replace(/^\s*[^{\[]*/, '') // Remove text before JSON starts
+      .replace(/[^\]}\s]*\s*$/, ''); // Remove text after JSON ends
 
     let parsed: unknown;
     try {

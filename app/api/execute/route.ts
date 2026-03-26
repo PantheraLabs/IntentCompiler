@@ -119,16 +119,22 @@ constraints: ${(userContext?.constraints || []).join(", ") || "none"}`;
 
     const stepTypeGuidance = (() => {
       switch (step.stepType) {
+        case "instruction_role":
+          return "Generate markdown content for the ## Role section. Define the AI's persona, expertise level, and primary responsibilities for this project.";
+        case "instruction_context":
+          return "Generate markdown content for the ## Context section. Include project overview, tech stack, architecture, and audience.";
+        case "instruction_rules":
+          return "Generate markdown content for the ## Rules section. Define coding standards, constraints, and execution guidelines.";
+        case "instruction_assembly":
+          return "Combine all previous section outputs into a complete, formatted instruction file (CLAUDE.md/.cursorrules format). Add headers and ensure consistency.";
         case "research":
           return "Provide concise findings with a short sources list placeholder.";
-        case "code":
-          return "Return patch-ready code or explicit file-level instructions.";
         case "write":
           return "Write polished prose with clear structure and headings if needed.";
-        case "plan":
-          return "Return an ordered checklist with dependencies.";
-        default:
+        case "analysis":
           return "Return structured analysis with clear conclusions.";
+        default:
+          return "Return structured markdown content.";
       }
     })();
 
@@ -185,19 +191,22 @@ ${JSON.stringify(executionSchema.schema)}`
           warnings.push("Research output should include a Sources section.");
         }
       }
-      if (step.stepType === "code") {
-        if (!/(file|path|diff)/i.test(output)) {
-          warnings.push("Code output should reference file paths or a diff.");
+      if (step.stepType?.startsWith("instruction_") && step.stepType !== "instruction_assembly") {
+        // Check for markdown heading structure
+        if (!/^##?\s/m.test(output)) {
+          warnings.push("Instruction section should have markdown headers.");
+        }
+        if (output.length < 100) {
+          warnings.push("Instruction section seems too short; expand the content.");
         }
       }
-      if (step.stepType === "plan") {
-        if (!/^\s*\d+\./m.test(output)) {
-          warnings.push("Plan output should be an ordered list.");
+      if (step.stepType === "instruction_assembly") {
+        // Final assembly should be a complete instruction file
+        if (!/#\s/.test(output)) {
+          warnings.push("Final instruction file should have a main title/header.");
         }
-      }
-      if (step.stepType === "write") {
-        if (output.length < 200) {
-          warnings.push("Write output seems too short; expand the content.");
+        if (!/##\s*(Role|Context|Rules|Overview)/i.test(output)) {
+          warnings.push("Final assembly missing expected sections (Role, Context, Rules).");
         }
       }
       return warnings;

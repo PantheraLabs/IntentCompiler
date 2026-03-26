@@ -140,6 +140,48 @@ export async function evaluateStepQuality(
     dimensions.completeness -= 1;
   }
 
+  // Instruction-specific quality checks
+  if (step.stepType?.startsWith("instruction_") && step.stepType !== "instruction_assembly") {
+    // Check for markdown headers
+    if (!/^##?\s/m.test(output)) {
+      issues.push({
+        severity: "medium",
+        category: "formatCompliance",
+        message: "Instruction section should have markdown headers (## or ###)"
+      });
+      dimensions.formatCompliance -= 1;
+    }
+    // Check section completeness
+    if (output.length < 150) {
+      issues.push({
+        severity: "medium",
+        category: "completeness",
+        message: "Instruction section is too short; expand with specific guidance"
+      });
+      dimensions.completeness -= 1.5;
+    }
+  }
+
+  if (step.stepType === "instruction_assembly") {
+    // Final assembly should be a complete instruction file
+    if (!/#\s/.test(output)) {
+      issues.push({
+        severity: "high",
+        category: "formatCompliance",
+        message: "Final instruction file missing main title/header (# Title)"
+      });
+      dimensions.formatCompliance -= 2;
+    }
+    if (!/##\s*(Role|Context|Rules|Overview)/i.test(output)) {
+      issues.push({
+        severity: "high",
+        category: "completeness",
+        message: "Final assembly missing expected sections (Role, Context, Rules, or Overview)"
+      });
+      dimensions.completeness -= 2;
+    }
+  }
+
   if (step.stepType === "code" && !/(```|function|class|const|let|var)/.test(output)) {
     issues.push({
       severity: "medium",

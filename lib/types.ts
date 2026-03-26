@@ -36,7 +36,7 @@ export type WorkflowStep = {
   id: string;
   role: string;
   task: string;
-  stepType?: "research" | "write" | "code" | "analysis" | "plan" | "condition" | "loop";
+  stepType?: "research" | "write" | "code" | "analysis" | "plan" | "condition" | "loop" | "instruction_role" | "instruction_context" | "instruction_rules" | "instruction_assembly";
   status?: ExecutionStatus;
   output?: string;
   error?: string;
@@ -53,6 +53,8 @@ export type WorkflowStep = {
     timestamp: string;
     quality?: { score: number; issues: number };
   }>;
+  // Section name for instruction assembly
+  sectionName?: string;
   // Branching and flow control
   condition?: {
     if: string;
