@@ -86,13 +86,16 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
   };
 
 
-  const runStep = async (index: number) => {
+  const runStep = async (index: number, currentStepOutputs?: Map<string, string>) => {
     const step = steps[index];
     if (!step) return;
 
     setError("");
     setCurrentStepId(step.id);
     patchStep(index, { status: "running", error: "" });
+
+    // Use passed outputs or fall back to current state
+    const outputsToUse = currentStepOutputs || stepOutputs;
 
     try {
       const res = await fetch("/api/execute", {
@@ -103,7 +106,7 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
           userContext: resolvedContext,
           modelConfig,
           previousOutputs: steps.slice(0, index).map((s) => s.output || "").filter(Boolean),
-          stepOutputs: Object.fromEntries(stepOutputs)
+          stepOutputs: Object.fromEntries(outputsToUse)
         })
       });
 
@@ -119,6 +122,22 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
         warnings,
         timestamp: new Date().toISOString()
       };
+      
+      // Update stepOutputs for dependency tracking
+      const updatedStepOutputs = new Map(outputsToUse);
+      updatedStepOutputs.set(step.id, data.output || "");
+      setStepOutputs(updatedStepOutputs);
+      
+      // Update execution context to reflect completed step
+      setExecutionContext(prev => {
+        if (!prev || !workflow) return prev;
+        const newContext = { ...prev };
+        newContext.completedSteps.add(step.id);
+        newContext.stepOutputs.set(step.id, data.output || "");
+        newContext.executionPath.push(step.id);
+        return newContext;
+      });
+      
       patchStep(index, {
         output: data.output,
         status: "success",
@@ -126,6 +145,8 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
         warnings,
         logs: [...(step.logs ?? []), attemptLog]
       });
+      
+      return updatedStepOutputs;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Execution failed.";
       patchStep(index, { status: "error", error: message });
@@ -139,10 +160,27 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
   const runAll = async () => {
     setRunningAll(true);
     setError("");
-    for (let i = 0; i < steps.length; i += 1) {
+    
+    // Get execution order based on dependencies
+    const executionOrder = workflow ? resolveExecutionOrder(workflow, executionContext || undefined) : [];
+    
+    let accumulatedOutputs = new Map(stepOutputs); // Start with current state
+    
+    for (const stepId of executionOrder) {
+      const stepIndex = steps.findIndex(s => s.id === stepId);
+      if (stepIndex === -1) continue;
+      
+      // Skip if already successful
+      if (steps[stepIndex]?.status === "success") {
+        continue;
+      }
+      
       try {
         // eslint-disable-next-line no-await-in-loop
-        await runStep(i);
+        const result = await runStep(stepIndex, accumulatedOutputs);
+        if (result) {
+          accumulatedOutputs = result;
+        }
       } catch {
         break;
       }

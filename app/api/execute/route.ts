@@ -42,15 +42,20 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ExecuteRequest;
     const { step, previousOutputs, userContext, stepOutputs } = body;
-    const modelConfig = resolveModelConfig(body.modelConfig, "complex");
+    const modelConfig = await resolveModelConfig(body.modelConfig, "complex");
+
+    // Convert stepOutputs from plain object to Map if needed
+    const stepOutputsMap = stepOutputs ? 
+      (stepOutputs instanceof Map ? stepOutputs : new Map(Object.entries(stepOutputs as Record<string, string>))) :
+      undefined;
 
     if (!step?.task) {
       return NextResponse.json({ error: "Invalid step." }, { status: 400 });
     }
 
     // Check if step should be skipped due to condition
-    if (step.condition && stepOutputs) {
-      const conditionMet = evaluateCondition(step.condition.if, new Map(Object.entries(stepOutputs)));
+    if (step.condition && stepOutputsMap) {
+      const conditionMet = evaluateCondition(step.condition.if, stepOutputsMap);
       const shouldExecute = conditionMet ? step.id === step.condition.then : step.id === step.condition.else;
       
       if (!shouldExecute) {
@@ -64,11 +69,12 @@ export async function POST(req: Request) {
     }
 
     // Check dependencies are satisfied
-    if (step.dependencies && step.dependencies.length > 0 && stepOutputs) {
-      const depsSatisfied = step.dependencies.every(dep => stepOutputs.has(dep));
+    if (step.dependencies && step.dependencies.length > 0 && stepOutputsMap) {
+      const depsSatisfied = step.dependencies.every(dep => stepOutputsMap.has(dep));
+      
       if (!depsSatisfied) {
         return NextResponse.json({ 
-          error: `Dependencies not satisfied: ${step.dependencies.filter(d => !stepOutputs?.has(d)).join(", ")}` 
+          error: `Dependencies not satisfied: ${step.dependencies.filter(d => !stepOutputsMap?.has(d)).join(", ")}` 
         }, { status: 400 });
       }
     }

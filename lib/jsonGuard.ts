@@ -41,19 +41,57 @@ export async function callJsonWithValidation<T>(
     const raw = extractAiccContent(response);
     lastRaw = raw;
 
+    // Try to extract JSON from the response
+    let jsonStr = raw;
+    
+    // First try to find a complete JSON object
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+    
+    // Also try to extract from markdown code blocks
+    const codeBlockMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1];
+    }
+    
+    // Handle nested JSON (e.g., {"output": "{...}"})
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (parsed.output && typeof parsed.output === 'string') {
+        // Try to parse the nested output
+        try {
+          const nestedParsed = JSON.parse(parsed.output);
+          jsonStr = JSON.stringify(nestedParsed);
+        } catch {
+          // If nested parsing fails, use the outer JSON
+          jsonStr = JSON.stringify(parsed);
+        }
+      }
+    } catch {
+      // Keep original jsonStr if parsing fails
+    }
+    
+    // Clean up common issues
+    jsonStr = jsonStr
+      .replace(/^[^\{\[]*|[\]]\}[^\]]*$/g, '') // Remove text before/after JSON
+      .replace(/,\s*}/g, '}') // Remove trailing commas
+      .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(jsonStr);
     } catch (err) {
       const parseError = err instanceof Error ? err.message : "Invalid JSON";
       if (attempt < maxAttempts) {
         currentMessages = currentMessages.concat({
           role: "user",
-          content: `Your response was not valid JSON (error: ${parseError}). Return JSON only that matches the schema.`
+          content: `Your response was not valid JSON (error: ${parseError}). Response was: ${jsonStr.slice(0, 200)}. Return JSON only that matches the schema.`
         });
         continue;
       }
-      throw new Error(`Failed to parse JSON after ${attempt} attempts.`);
+      throw new Error(`Failed to parse JSON after ${attempt} attempts. Raw response: ${lastRaw.slice(0, 500)}`);
     }
 
     const validation = validateJson<T>(schema, parsed);
@@ -62,14 +100,15 @@ export async function callJsonWithValidation<T>(
     }
 
     if (attempt < maxAttempts) {
+      const errors = formatErrors(validation.errors);
       currentMessages = currentMessages.concat({
         role: "user",
-        content: `Your JSON did not match the schema. Validation errors: ${formatErrors(validation.errors)}. Return JSON only that matches the schema.`
+        content: `Your JSON did not match the schema. Validation errors: ${errors}. Your response was: ${jsonStr.slice(0, 200)}. Return JSON only that matches the schema.`
       });
       continue;
     }
 
-    throw new Error(`Schema validation failed after ${attempt} attempts. Raw response: ${lastRaw.slice(0, 2000)}`);
+    throw new Error(`Schema validation failed after ${attempt} attempts. Errors: ${formatErrors(validation.errors)}. Raw response: ${lastRaw.slice(0, 2000)}`);
   }
 
   throw new Error("Unexpected JSON validation failure.");

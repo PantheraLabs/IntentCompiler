@@ -124,11 +124,19 @@ Select the best model from the catalog for this intent. Consider complexity, dom
     const content = typeof raw === 'object' && raw !== null && 'choices' in raw 
       ? raw.choices[0]?.message?.content || ""
       : String(raw);
+    
+    // Try to extract JSON from the response
+    let jsonStr = content;
     const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+    
     if (!jsonMatch) {
       throw new Error("No JSON in model response");
     }
-    const recommendation = JSON.parse(jsonMatch[0]);
+    
+    const recommendation = JSON.parse(jsonStr);
     return NextResponse.json(recommendation);
   } catch (err) {
     // Fallback: use local heuristics from modelRouter.ts
