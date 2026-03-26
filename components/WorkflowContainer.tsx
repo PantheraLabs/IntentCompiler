@@ -94,8 +94,16 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
     setCurrentStepId(step.id);
     patchStep(index, { status: "running", error: "" });
 
-    // Use passed outputs or fall back to current state
-    const outputsToUse = currentStepOutputs || stepOutputs;
+    // Build outputs from completed steps if not provided
+    const outputsToUse = currentStepOutputs || (() => {
+      const map = new Map<string, string>();
+      steps.forEach(s => {
+        if (s.status === "success" && s.output) {
+          map.set(s.id, s.output);
+        }
+      });
+      return map;
+    })();
 
     try {
       const res = await fetch("/api/execute", {
@@ -189,15 +197,31 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
   };
 
   const runRemaining = async () => {
-    const startIndex = steps.findIndex((step) => step.status !== "success");
-    if (startIndex === -1) return;
     setRunningAll(true);
     setError("");
+    
+    // Build stepOutputs from completed steps
+    let accumulatedOutputs = new Map<string, string>();
+    steps.forEach(step => {
+      if (step.status === "success" && step.output) {
+        accumulatedOutputs.set(step.id, step.output);
+      }
+    });
+    
+    const startIndex = steps.findIndex((step) => step.status !== "success");
+    if (startIndex === -1) {
+      setRunningAll(false);
+      return;
+    }
+    
     for (let i = startIndex; i < steps.length; i += 1) {
       if (steps[i]?.status === "success") continue;
       try {
         // eslint-disable-next-line no-await-in-loop
-        await runStep(i);
+        const result = await runStep(i, accumulatedOutputs);
+        if (result) {
+          accumulatedOutputs = result;
+        }
       } catch {
         break;
       }

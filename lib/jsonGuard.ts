@@ -56,26 +56,9 @@ export async function callJsonWithValidation<T>(
       jsonStr = codeBlockMatch[1];
     }
     
-    // Handle nested JSON (e.g., {"output": "{...}"})
-    try {
-      const parsed = JSON.parse(jsonStr);
-      if (parsed.output && typeof parsed.output === 'string') {
-        // Try to parse the nested output
-        try {
-          const nestedParsed = JSON.parse(parsed.output);
-          jsonStr = JSON.stringify(nestedParsed);
-        } catch {
-          // If nested parsing fails, use the outer JSON
-          jsonStr = JSON.stringify(parsed);
-        }
-      }
-    } catch {
-      // Keep original jsonStr if parsing fails
-    }
-    
     // Clean up common issues
     jsonStr = jsonStr
-      .replace(/^[^\{\[]*|[\]]\}[^\]]*$/g, '') // Remove text before/after JSON
+      .replace(/^[^{\[]*|[\]]}[^\]]*$/g, '') // Remove text before/after JSON
       .replace(/,\s*}/g, '}') // Remove trailing commas
       .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
 
