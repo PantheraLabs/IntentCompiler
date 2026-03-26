@@ -135,6 +135,10 @@ export default function StepCard({
             <option value="plan">Plan</option>
             <option value="write">Write</option>
             <option value="code">Code</option>
+            <option value="instruction_role">Instruction: Role</option>
+            <option value="instruction_context">Instruction: Context</option>
+            <option value="instruction_rules">Instruction: Rules</option>
+            <option value="instruction_assembly">Instruction: Assembly</option>
           </select>
         </div>
         <div>
