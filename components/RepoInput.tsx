@@ -42,7 +42,7 @@ export default function RepoInput({ onRepoAnalyzed, onError }: RepoInputProps) {
     setError(null);
 
     try {
-      const res = await fetch("/api/analyze-repo", {
+      const res = await fetch("/api/analysis/analyze-repo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoUrl })

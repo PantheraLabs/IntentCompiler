@@ -90,7 +90,7 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
     })();
 
     try {
-      const res = await fetch("/api/execute", {
+      const res = await fetch("/api/execution/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

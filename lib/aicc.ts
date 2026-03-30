@@ -6,11 +6,11 @@ export type AICCMessage = {
   content: string;
 };
 
-const MODEL_OPTIONS: Record<Provider, string[]> = {
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-  groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
-  openrouter: [],
-  ollama: [] // No fallbacks - show actual models only
+// Model selection preferences by task type
+const MODEL_PREFERENCES = {
+  complex: ["claude", "gpt-4", "llama-3.3", "mixtral", "gemini-pro"], // High quality
+  structured: ["gpt-4o", "llama-3.1", "gemini-flash", "qwen"], // High efficiency  
+  simple: ["llama-3.1-8b", "gpt-3.5", "gemini-1.5", "phi"] // High speed/low cost
 };
 
 let groqModelCache: { models: string[]; expiresAt: number } | null = null;
@@ -43,16 +43,21 @@ function filterTextModels(models: string[]) {
 function hasProviderKey(provider: Provider) {
   if (provider === "groq") return Boolean(process.env.GROQ_API_KEY);
   if (provider === "openrouter") return Boolean(process.env.OPENROUTER_API_KEY);
+  if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
   if (provider === "ollama") return true; // Local provider, assume reachable or fail gracefully
-  return false;
+  
+  // For any other provider, check for environment variable in format: PROVIDER_NAME_API_KEY
+  const envVarName = `${provider.toUpperCase()}_API_KEY`;
+  return Boolean(process.env[envVarName]);
 }
 
 export async function getAvailableProviders(): Promise<Provider[]> {
-  // Cost-priority order (cheaper first): Ollama -> OpenRouter -> Groq.
-  const priority: Provider[] = ["ollama", "openrouter", "groq"];
+  // Known providers with specific logic
+  const knownProviders: Provider[] = ["ollama", "openrouter", "groq", "openai"];
   const available: Provider[] = [];
   
-  for (const provider of priority) {
+  // Check known providers first
+  for (const provider of knownProviders) {
     if (provider === "ollama") {
       // Only include Ollama if it has models installed
       const models = await fetchOllamaModels();
@@ -60,7 +65,7 @@ export async function getAvailableProviders(): Promise<Provider[]> {
         available.push(provider);
       }
     } else if (provider === "openrouter") {
-      // Only include OpenRouter if it has API key AND free models
+      // Only include OpenRouter if it has API key AND models
       if (hasProviderKey(provider)) {
         const models = await fetchOpenRouterModels();
         if (models.length > 0) {
@@ -71,6 +76,15 @@ export async function getAvailableProviders(): Promise<Provider[]> {
       available.push(provider);
     }
   }
+  
+  // Check for any additional providers via environment variables
+  // Format: PROVIDER_NAME_API_KEY and optionally PROVIDER_NAME_BASE_URL
+  const envProviders = Object.keys(process.env)
+    .filter(key => key.endsWith('_API_KEY') && !knownProviders.some(p => key === `${p.toUpperCase()}_API_KEY`))
+    .map(key => key.replace('_API_KEY', '').toLowerCase() as Provider)
+    .filter(provider => hasProviderKey(provider));
+  
+  available.push(...envProviders);
   
   return available;
 }
@@ -86,7 +100,7 @@ export async function assertAnyProviderKey() {
 
 async function fetchGroqModels() {
   if (!process.env.GROQ_API_KEY) {
-    return MODEL_OPTIONS.groq;
+    return [];
   }
   if (groqModelCache && Date.now() < groqModelCache.expiresAt) {
     return groqModelCache.models;
@@ -99,14 +113,13 @@ async function fetchGroqModels() {
     const response = await client.models.list();
     const models = response.data.map((m) => m.id);
     const filtered = filterTextModels(models);
-    const resolved = filtered.length ? filtered : MODEL_OPTIONS.groq;
     groqModelCache = {
-      models: resolved,
+      models: filtered,
       expiresAt: Date.now() + 10 * 60 * 1000
     };
-    return resolved;
+    return filtered;
   } catch {
-    return MODEL_OPTIONS.groq;
+    return [];
   }
 }
 
@@ -164,30 +177,54 @@ async function fetchOpenRouterModels() {
       }>;
     };
 
-    const freeModelIds = (payload.data || [])
-      .filter((model) => {
-        const modalities = model.architecture?.output_modalities || [];
-        if (modalities.length && !modalities.includes("text")) return false;
-        const pricing = model.pricing || {};
-        const prompt = Number(pricing.prompt ?? "1");
-        const completion = Number(pricing.completion ?? "1");
-        const request = Number(pricing.request ?? "1");
-        const isFree = prompt === 0 && completion === 0 && request === 0;
-        
-        // Filter out expiring models
-        if (isFree && model.id?.includes("trinity-large-preview")) return false;
-        
-        return isFree;
-      })
-      .map((model) => model.id?.trim())
-      .filter((id): id is string => Boolean(id));
+    const models = (payload.data || [])
+      .filter((model) => model.id)
+      .map((model) => model.id!)
+      .filter(isTextFirstModel);
 
-    const filtered = filterTextModels(freeModelIds);
+    // Show all models, not just free ones (let the model selection API handle filtering)
+    const filtered = filterTextModels(models);
     openRouterModelCache = {
       models: filtered,
       expiresAt: Date.now() + 5 * 60 * 1000
     };
     return filtered;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchOpenAIModels() {
+  if (!process.env.OPENAI_API_KEY) {
+    return [];
+  }
+  try {
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+    const response = await client.models.list();
+    const models = response.data.map((m) => m.id);
+    return filterTextModels(models);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchGenericModels(provider: Provider) {
+  // Try to fetch models from a generic OpenAI-compatible endpoint
+  const apiKey = process.env[`${provider.toUpperCase()}_API_KEY`];
+  const baseUrl = process.env[`${provider.toUpperCase()}_BASE_URL`] || `https://api.${provider}.com/v1`;
+  
+  if (!apiKey) return [];
+  
+  try {
+    const client = new OpenAI({
+      apiKey,
+      baseURL: baseUrl
+    });
+    const response = await client.models.list();
+    const models = response.data.map((m) => m.id);
+    return filterTextModels(models);
   } catch {
     return [];
   }
@@ -203,7 +240,12 @@ export async function getModelsForProvider(provider: Provider) {
   if (provider === "ollama") {
     return fetchOllamaModels();
   }
-  return filterTextModels(MODEL_OPTIONS[provider]);
+  if (provider === "openai") {
+    return fetchOpenAIModels();
+  }
+  
+  // Generic fetch for any other provider
+  return fetchGenericModels(provider);
 }
 
 export async function getUniqueModelsByProvider(providers: Provider[]) {
@@ -235,16 +277,52 @@ export async function getDefaultProvider(): Promise<Provider> {
 
 export async function selectModel(taskType: "complex" | "structured" | "simple", provider?: Provider) {
   const resolvedProvider = provider || await getDefaultProvider();
-  const options = MODEL_OPTIONS[resolvedProvider];
+  const availableModels = await getModelsForProvider(resolvedProvider);
   
-  // High quality (Complex tasks: Instruction compilation)
-  if (taskType === "complex") return options[0];
+  if (availableModels.length === 0) {
+    throw new Error(`No models available for provider: ${resolvedProvider}`);
+  }
   
-  // High efficiency (Structured tasks: Intent refinement)
-  if (taskType === "structured") return options[1] || options[0];
+  // Get preferences for this task type
+  const preferences = MODEL_PREFERENCES[taskType];
   
-  // High speed/Low cost (Simple tasks: Field suggestions)
-  return options[2] || options[1] || options[0];
+  // Score models based on preference matches and other factors
+  const scoredModels = availableModels.map((model: string) => {
+    const modelName = model.toLowerCase();
+    
+    // Calculate preference score
+    let score = 0;
+    for (const pref of preferences) {
+      if (modelName.includes(pref)) {
+        score += 10; // Strong preference match
+      }
+    }
+    
+    // Bonus for well-known model families
+    if (modelName.includes("claude")) score += 5;
+    if (modelName.includes("gpt-4")) score += 5;
+    if (modelName.includes("llama-3")) score += 3;
+    if (modelName.includes("gemini")) score += 3;
+    
+    // Penalty for very small models for complex tasks
+    if (taskType === "complex" && (modelName.includes("1b") || modelName.includes("tiny"))) {
+      score -= 5;
+    }
+    
+    // Penalty for very large models for simple tasks  
+    if (taskType === "simple" && (modelName.includes("70b") || modelName.includes("405b"))) {
+      score -= 3;
+    }
+    
+    return { model, score };
+  });
+  
+  // Sort by score (highest first) and return the best model
+  scoredModels.sort((a: { model: string; score: number }, b: { model: string; score: number }) => b.score - a.score);
+  
+  const selected = scoredModels[0]?.model || availableModels[0];
+  
+  return selected;
 }
 
 export async function resolveModelConfig(

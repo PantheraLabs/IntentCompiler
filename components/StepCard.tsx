@@ -221,7 +221,7 @@ export default function StepCard({
 
     setIsValidating(true);
     try {
-      const res = await fetch("/api/validate-step", {
+      const res = await fetch("/api/validation/validate-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -45,7 +45,7 @@ export default function InputForm() {
     };
 
     try {
-      const res = await fetch("/api/compile", {
+      const res = await fetch("/api/compilation/compile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

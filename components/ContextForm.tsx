@@ -335,13 +335,14 @@ export default function ContextForm() {
   const [loadingModels, setLoadingModels] = useState(true);
   const [recommendation, setRecommendation] = useState<ModelRecommendation | null>(null);
   const [loadingRecommendation, setLoadingRecommendation] = useState(false);
+  const [autoSelectedModel, setAutoSelectedModel] = useState<boolean>(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
 
   // Auto-scan project on mount
   useEffect(() => {
     async function scan() {
       try {
-        const res = await fetch("/api/scan-project");
+        const res = await fetch("/api/analysis/scan-project");
         if (res.ok) {
           const data = await res.json();
           setContext((prev) => ({
@@ -416,22 +417,60 @@ export default function ContextForm() {
   }, []);
 
   useEffect(() => {
+    if (!intent.trim() || intent.length < 10) return;
+    
+    setFetchingSuggestions(true);
+    
+    // Run both suggestions and intelligent model selection in parallel
     const timer = setTimeout(async () => {
-      if (!intent.trim() || intent.length < 10) return;
-      
-      setFetchingSuggestions(true);
       try {
-        const res = await fetch("/api/suggest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ intent, modelConfig })
-        });
-        const data = await res.json();
-        if (res.ok && data.suggestions) {
-          setSuggestions(data.suggestions);
+        const [suggestionsRes, modelSelectionRes] = await Promise.allSettled([
+          fetch("/api/suggestions/suggest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ intent, modelConfig })
+          }),
+          fetch("/api/model-selection", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              intent,
+              projectDescription: context.project,
+              complexity: context.projectComplexity || "medium",
+              taskType: "structured",
+              maxCost: 0 // Only free models
+            })
+          })
+        ]);
+        
+        // Handle suggestions
+        if (suggestionsRes.status === "fulfilled") {
+          const data = await suggestionsRes.value.json();
+          if (data.suggestions) {
+            setSuggestions(data.suggestions);
+          }
+        }
+        
+        // Handle intelligent model selection
+        if (modelSelectionRes.status === "fulfilled") {
+          const data = await modelSelectionRes.value.json();
+          if (data.success && data.selectedModel) {
+            // Only auto-apply if user hasn't manually selected a model yet
+            if (!modelConfig || modelConfig.model === models.find(m => m.provider === modelConfig.provider)?.models[0]) {
+              setModelConfig({
+                provider: data.selectedModel.provider,
+                model: data.selectedModel.model
+              });
+              setAutoSelectedModel(true);
+              console.log("Auto-selected optimal model:", data.selectedModel.model, "Reasoning:", data.reasoning);
+              
+              // Clear auto-selection indicator after 3 seconds
+              setTimeout(() => setAutoSelectedModel(false), 3000);
+            }
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch suggestions:", err);
+        console.error("Failed to fetch suggestions or select model:", err);
       } finally {
         setFetchingSuggestions(false);
       }
@@ -534,7 +573,7 @@ export default function ContextForm() {
         modelConfig
       };
 
-      const res = await fetch("/api/compile", {
+      const res = await fetch("/api/compilation/compile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -586,7 +625,7 @@ export default function ContextForm() {
         modelConfig
       };
 
-      const res = await fetch("/api/compile-instruction", {
+      const res = await fetch("/api/compilation/compile-instruction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -770,8 +809,21 @@ export default function ContextForm() {
             onApply={(config) => {
               setModelConfig(config);
               setModelPickerOpen(false);
+              setAutoSelectedModel(false); // User manually selected, clear auto indicator
             }}
           />
+          
+          {/* Auto-selection indicator */}
+          {autoSelectedModel && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300"
+            >
+              🤖 Auto-selected optimal model for your project
+            </motion.div>
+          )}
         </motion.div>
 
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 relative z-[30]">
@@ -789,6 +841,7 @@ export default function ContextForm() {
                   setModelSearch("");
                   setModelView("recommended");
                   setModelPickerOpen(false);
+                  setAutoSelectedModel(false); // User manually selected, clear auto indicator
                 }}
               />
             )}
@@ -857,6 +910,7 @@ export default function ContextForm() {
                                     onClick={() => {
                                       setModelConfig((prev) => (prev ? { ...prev, model } : null));
                                       setModelPickerOpen(false);
+                                      setAutoSelectedModel(false); // User manually selected, clear auto indicator
                                     }}
                                     className={`w-full rounded-md border px-2.5 py-1.5 text-left text-xs transition relative group ${
                                       modelConfig?.model === model
