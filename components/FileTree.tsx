@@ -64,6 +64,14 @@ export default function FileTree({
         return "🚀";
       case "testing":
         return "🧪";
+      case "monitoring":
+        return "📊";
+      case "security":
+        return "🛡️";
+      case "compliance":
+        return "📋";
+      case "scaling":
+        return "📈";
       default:
         return "📄";
     }

@@ -6,7 +6,7 @@
 import type { UserContext } from "./types";
 
 export type ProjectType = "website" | "webapp" | "fullstack" | "mobile" | "api" | "cli" | "documentation";
-export type ComplexityLevel = "simple" | "medium" | "complex";
+export type ComplexityLevel = "simple" | "medium" | "complex" | "ultra-complex";
 
 export interface ProjectAnalysis {
   type: ProjectType;
@@ -41,7 +41,8 @@ const PROJECT_TYPE_KEYWORDS: Record<ProjectType, string[]> = {
 const COMPLEXITY_KEYWORDS = {
   simple: ["simple", "basic", "minimal", "single page", "static", "landing", "portfolio", "blog"],
   medium: ["dashboard", "admin", "management", "crud", "authentication", "user accounts", "database", "api"],
-  complex: ["microservice", "distributed", "real-time", "scalable", "enterprise", "multi-tenant", "payment", "integration", "ai", "machine learning"]
+  complex: ["microservice", "distributed", "real-time", "scalable", "enterprise", "multi-tenant", "payment", "integration", "ai", "machine learning"],
+  "ultra-complex": ["multi-region", "global scale", "high availability", "disaster recovery", "compliance", "regulatory", "fintech", "healthcare", "aerospace", "defense", "critical infrastructure"]
 };
 
 // Domain keywords for file splitting decision
@@ -152,6 +153,7 @@ function detectComplexity(text: string, context?: UserContext): ComplexityLevel 
   let simpleScore = 0;
   let mediumScore = 0;
   let complexScore = 0;
+  let ultraComplexScore = 0;
   
   for (const keyword of COMPLEXITY_KEYWORDS.simple) {
     if (text.includes(keyword)) simpleScore++;
@@ -165,12 +167,23 @@ function detectComplexity(text: string, context?: UserContext): ComplexityLevel 
     if (text.includes(keyword)) complexScore++;
   }
   
+  for (const keyword of COMPLEXITY_KEYWORDS["ultra-complex"]) {
+    if (text.includes(keyword)) ultraComplexScore++;
+  }
+  
   // Feature count affects complexity
   const featureCount = (text.match(/feature|include|have|with/gi) || []).length;
-  if (featureCount > 5) complexScore += 2;
+  if (featureCount > 10) ultraComplexScore += 3;
+  else if (featureCount > 5) complexScore += 2;
   else if (featureCount > 2) mediumScore += 1;
   
+  // Tech stack complexity
+  const techStackCount = (text.match(/(react|vue|angular|node|django|mongodb|postgres|docker|kubernetes|aws|gcp|azure)/gi) || []).length;
+  if (techStackCount > 8) ultraComplexScore += 2;
+  else if (techStackCount > 5) complexScore += 1;
+  
   // Determine complexity
+  if (ultraComplexScore > 0 && ultraComplexScore > complexScore) return "ultra-complex";
   if (complexScore > mediumScore && complexScore > simpleScore) return "complex";
   if (mediumScore > simpleScore) return "medium";
   return "simple";
@@ -327,6 +340,18 @@ function decideFileStructure(
     };
   }
   
+  // Ultra-complex projects: always multiple files
+  if (complexity === "ultra-complex") {
+    const fileCount = calculateOptimalFileCount(type, domains, features, true);
+    
+    return {
+      shouldSplit: true,
+      fileCount: Math.max(fileCount, 8), // Minimum 8 files for ultra-complex
+      fileTypes: selectFileTypes(domains, fileCount),
+      reasoning: `Ultra-complex enterprise project requiring comprehensive documentation across ${fileCount} specialized files`
+    };
+  }
+  
   // Default: single file
   return {
     shouldSplit: false,
@@ -342,7 +367,8 @@ function decideFileStructure(
 function calculateOptimalFileCount(
   type: ProjectType,
   domains: string[],
-  features: string[]
+  features: string[],
+  isUltraComplex = false
 ): number {
   // Base count by project type
   const baseCount: Record<ProjectType, number> = {
@@ -371,22 +397,36 @@ function calculateOptimalFileCount(
   }
   
   // Adjust for features
-  if (features.length > 5) {
-    count = Math.min(count + 1, 6); // Cap at 6 files
+  if (features.length > 10) {
+    count = Math.min(count + 2, 12); // Higher cap for feature-rich projects
+  } else if (features.length > 5) {
+    count = Math.min(count + 1, 8);
+  }
+  
+  // Ultra-complex projects get more files
+  if (isUltraComplex) {
+    count = Math.max(count, 8);
+    // Add specialized files for ultra-complex
+    const specializedFiles = ["monitoring", "security", "compliance", "scaling"];
+    for (const file of specializedFiles) {
+      if (domains.some(d => file.includes(d))) {
+        count++;
+      }
+    }
   }
   
   // Cap based on project type
   const maxFiles: Record<ProjectType, number> = {
-    website: 2,
-    webapp: 4,
-    fullstack: 6,
-    mobile: 4,
-    api: 3,
-    cli: 2,
-    documentation: 2
+    website: 3,
+    webapp: 8,
+    fullstack: 12,
+    mobile: 6,
+    api: 6,
+    cli: 3,
+    documentation: 4
   };
   
-  return Math.min(count, maxFiles[type] || 4);
+  return Math.min(count, maxFiles[type] || 8);
 }
 
 /**

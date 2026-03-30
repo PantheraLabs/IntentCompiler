@@ -76,6 +76,30 @@ const FILE_CONFIGS: Record<string, {
     name: "TESTING.md",
     description: "Testing strategies and guidelines",
     sections: ["unit", "integration", "e2e", "coverage"]
+  },
+  monitoring: {
+    prefix: "08-",
+    name: "MONITORING.md",
+    description: "Monitoring, logging, and observability",
+    sections: ["logging", "metrics", "alerts", "tracing"]
+  },
+  security: {
+    prefix: "09-",
+    name: "SECURITY.md",
+    description: "Security policies and compliance",
+    sections: ["policies", "threats", "compliance", "auditing"]
+  },
+  compliance: {
+    prefix: "10-",
+    name: "COMPLIANCE.md",
+    description: "Regulatory compliance and governance",
+    sections: ["regulations", "audits", "documentation", "reporting"]
+  },
+  scaling: {
+    prefix: "11-",
+    name: "SCALING.md",
+    description: "Scaling strategies and performance",
+    sections: ["horizontal", "vertical", "caching", "optimization"]
   }
 };
 
@@ -200,7 +224,11 @@ function mapDomainsToFileTypes(domains: string[], maxFiles: number): string[] {
     database: "database",
     authentication: "authentication",
     deployment: "deployment",
-    testing: "testing"
+    testing: "testing",
+    monitoring: "monitoring",
+    security: "security",
+    compliance: "compliance",
+    scaling: "scaling"
   };
   
   const fileTypes: string[] = [];
@@ -221,6 +249,17 @@ function mapDomainsToFileTypes(domains: string[], maxFiles: number): string[] {
   // Always add deployment for multi-file projects
   if (!fileTypes.includes("deployment") && maxFiles > 2) {
     fileTypes.push("deployment");
+  }
+  
+  // Add specialized files for ultra-complex projects
+  if (maxFiles >= 8) {
+    if (!fileTypes.includes("monitoring")) fileTypes.push("monitoring");
+    if (!fileTypes.includes("security")) fileTypes.push("security");
+  }
+  
+  if (maxFiles >= 10) {
+    if (!fileTypes.includes("compliance")) fileTypes.push("compliance");
+    if (!fileTypes.includes("scaling")) fileTypes.push("scaling");
   }
   
   // Trim to max files
