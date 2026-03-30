@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactDropdown from "@/components/ui/CompactDropdown";
+import TierBadge from "@/components/TierBadge";
 import type { UserContext, WorkflowStep } from "@/lib/types";
+import type { UserTier } from "@/lib/tierConfig";
 
 type CompileResponse = {
   steps: WorkflowStep[];
@@ -15,7 +17,8 @@ const initialContext: UserContext = {
   audience: "",
   depth: "basic",
   style: "",
-  constraints: []
+  constraints: [],
+  userTier: "free"
 };
 
 export default function InputForm() {
@@ -25,6 +28,7 @@ export default function InputForm() {
   const [constraintsInput, setConstraintsInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showTierInfo, setShowTierInfo] = useState(false);
 
   const handleCompile = async () => {
     setLoading(true);
@@ -75,9 +79,20 @@ export default function InputForm() {
 
   return (
     <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-surface/80 p-6 shadow-card backdrop-blur">
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-text">Intent Compiler</h1>
-        <p className="mt-1 text-sm text-muted">Convert intent + context into executable AI workflows.</p>
+      <div className="mb-5 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-text">Intent Compiler</h1>
+          <p className="mt-1 text-sm text-muted">Convert intent + context into executable AI workflows.</p>
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowTierInfo(!showTierInfo)}
+            className="cursor-pointer"
+          >
+            <TierBadge tier={context.userTier || "free"} showDetails={showTierInfo} />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -125,6 +140,26 @@ export default function InputForm() {
             <input
               value={context.style}
               onChange={(e) => setContext((prev) => ({ ...prev, style: e.target.value }))}
+              className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted">User Tier</label>
+            <CompactDropdown
+              value={context.userTier || "free"}
+              onChange={(value) => setContext((prev) => ({ ...prev, userTier: value as UserTier }))}
+              options={[
+                { value: "free", label: "Free (8 steps max)" },
+                { value: "premium", label: "Premium (Unlimited)" }
+              ]}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-muted">Tech Stack (optional)</label>
+            <input
+              value={context.techStack || ""}
+              onChange={(e) => setContext((prev) => ({ ...prev, techStack: e.target.value }))}
+              placeholder="React, Node.js, PostgreSQL"
               className="w-full rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
             />
           </div>

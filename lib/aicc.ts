@@ -7,6 +7,7 @@ export type AICCMessage = {
 };
 
 const MODEL_OPTIONS: Record<Provider, string[]> = {
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
   groq: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"],
   openrouter: [],
   ollama: [] // No fallbacks - show actual models only

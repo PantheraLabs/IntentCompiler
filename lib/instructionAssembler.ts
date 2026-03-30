@@ -1,0 +1,768 @@
+import type { WorkflowStep, UserContext } from "./types";
+
+export type InstructionTarget = "claude" | "agents" | "gemini" | "cursor" | "windsurf" | "generic";
+
+export interface InstructionQuality {
+  overallScore: number;
+  successRate: number;
+  clarityRate: number;
+  completenessRate: number;
+  coherenceRate: number;
+  actionabilityRate: number;
+  issues: QualityIssue[];
+  suggestions: string[];
+  passedThreshold: boolean;
+}
+
+export interface QualityIssue {
+  type: "error" | "warning" | "suggestion";
+  category: "structure" | "clarity" | "completeness" | "coherence" | "actionability";
+  message: string;
+  location?: string;
+  severity: number; // 1-10
+}
+
+export interface AssembledInstruction {
+  markdown: string;
+  quality: InstructionQuality;
+  iteration: number;
+  maxIterations: number;
+  improvedFrom?: number;
+}
+
+const QUALITY_THRESHOLD = 90;
+
+const TARGET_FILE_NAMES: Record<InstructionTarget, string> = {
+  claude: "CLAUDE.md",
+  agents: "AGENTS.md",
+  gemini: "GEMINI.md",
+  cursor: ".cursorrules",
+  windsurf: ".windsurfrules",
+  generic: "INSTRUCTIONS.md"
+};
+
+const TARGET_DESCRIPTIONS: Record<InstructionTarget, string> = {
+  claude: "Claude AI by Anthropic - Focus on project structure, CLI commands, and specific behavior rules",
+  agents: "Multi-agent systems - Focus on role definition, collaboration, and tool usage",
+  gemini: "Google Gemini - Focus on clear context and task-oriented instructions",
+  cursor: "Cursor IDE - Focus on code generation rules and project conventions",
+  windsurf: "Windsurf IDE - Focus on AI pair programming guidelines",
+  generic: "General AI assistants - Focus on clear project overview and core responsibilities"
+};
+
+/**
+ * Assemble instruction file from completed workflow steps
+ */
+export function assembleInstruction(
+  steps: WorkflowStep[],
+  context: UserContext,
+  intent: string,
+  target: InstructionTarget
+): string {
+  const completedSteps = steps.filter(s => s.status === "success" && s.output);
+  
+  if (completedSteps.length === 0) {
+    return generateEmptyInstruction(context, intent, target);
+  }
+
+  const sections = organizeStepOutputs(completedSteps);
+  
+  return buildMarkdownDocument(sections, context, intent, target);
+}
+
+/**
+ * Organize step outputs into logical sections
+ */
+function organizeStepOutputs(steps: WorkflowStep[]): Map<string, string> {
+  const sections = new Map<string, string>();
+  
+  // Define section order and mapping
+  const sectionOrder = [
+    "role",
+    "identity", 
+    "context",
+    "overview",
+    "responsibilities",
+    "rules",
+    "constraints",
+    "guidelines",
+    "setup",
+    "tools",
+    "cli",
+    "workflow",
+    "assembly"
+  ];
+
+  for (const step of steps) {
+    const sectionName = (step.sectionName || step.role || "Content").toLowerCase();
+    
+    // Find matching section category
+    let category = "additional";
+    for (const key of sectionOrder) {
+      if (sectionName.includes(key)) {
+        category = key;
+        break;
+      }
+    }
+    
+    // Clean the output - remove duplicate headers and workflow metadata
+    let cleanedOutput = cleanStepOutput(step.output || "", category);
+    
+    // Merge or add content
+    const existing = sections.get(category);
+    if (existing) {
+      sections.set(category, existing + "\n\n" + cleanedOutput);
+    } else {
+      sections.set(category, cleanedOutput);
+    }
+  }
+  
+  return sections;
+}
+
+/**
+ * Clean step output by removing duplicate headers and workflow metadata
+ */
+function cleanStepOutput(output: string, category: string): string {
+  if (!output) return "";
+  
+  let cleaned = output;
+  
+  // Remove markdown headers that duplicate the section category
+  // e.g., remove "## Role" if this is the role section
+  const headerPattern = /^##\s+(Role|Context|Rules|Overview|Responsibilities|Setup|Tools|Guidelines|Constraints)\s*\n/gim;
+  cleaned = cleaned.replace(headerPattern, "");
+  
+  // Remove "## Final" or "## Assembly" headers - these are meta-sections
+  cleaned = cleaned.replace(/^##\s+(Final|Assembly)\s*\n/gim, "");
+  
+  // Remove workflow metadata sections
+  const metadataPatterns = [
+    /^##\s+Step History[\s\S]*?(?=\n##|$)/gi,
+    /^##\s+Acceptance Tests[\s\S]*?(?=\n##|$)/gi,
+    /^##\s+Quality[\s\S]*?(?=\n##|$)/gi,
+    /\*No previous steps\.\*/gi,
+    /Step History:?\s*$/gim
+  ];
+  
+  for (const pattern of metadataPatterns) {
+    cleaned = cleaned.replace(pattern, "");
+  }
+  
+  // Remove "Introduction" sub-headers that are redundant
+  cleaned = cleaned.replace(/^##\s+Introduction\s*\n/gim, "");
+  
+  // Clean up excessive newlines
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
+  
+  return cleaned.trim();
+}
+
+/**
+ * Build the final markdown document
+ */
+function buildMarkdownDocument(
+  sections: Map<string, string>,
+  context: UserContext,
+  intent: string,
+  target: InstructionTarget
+): string {
+  const fileName = TARGET_FILE_NAMES[target];
+  const description = TARGET_DESCRIPTIONS[target];
+  
+  let markdown = `# ${fileName} - AI Instruction File
+
+> **Generated by IntentCompiler**
+> **Target:** ${description}
+> **Project:** ${context.project || "Not specified"}
+> **Generated:** ${new Date().toLocaleString()}
+
+---
+
+## Overview
+
+${intent}
+
+`;
+
+  // Add project context if available
+  if (context.project || context.audience || context.techStack) {
+    markdown += `### Project Context
+
+`;
+    if (context.project) markdown += `- **Project:** ${context.project}\n`;
+    if (context.audience) markdown += `- **Audience:** ${context.audience}\n`;
+    if (context.techStack) markdown += `- **Tech Stack:** ${context.techStack}\n`;
+    if (context.depth) markdown += `- **Depth:** ${context.depth}\n`;
+    markdown += "\n---\n\n";
+  }
+
+  // Define section display order and titles
+  const sectionTitles: Record<string, string> = {
+    role: "## Role & Identity",
+    identity: "## Identity",
+    context: "## Project Context",
+    overview: "## Overview",
+    responsibilities: "## Core Responsibilities",
+    rules: "## Rules & Constraints",
+    constraints: "## Constraints",
+    guidelines: "## Guidelines",
+    setup: "## Setup & Configuration",
+    tools: "## Tools & CLI",
+    cli: "## CLI Commands",
+    workflow: "## Workflow",
+    assembly: "## Complete Instructions"
+  };
+
+  const displayOrder = ["role", "identity", "context", "overview", "responsibilities", "rules", "constraints", "guidelines", "setup", "tools", "cli", "workflow", "assembly"];
+
+  // Add sections in order
+  for (const key of displayOrder) {
+    const content = sections.get(key);
+    if (content) {
+      const title = sectionTitles[key] || `## ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+      markdown += `${title}\n\n${content}\n\n---\n\n`;
+    }
+  }
+
+  // Add any remaining sections not in the standard order
+  for (const [key, content] of sections.entries()) {
+    if (!displayOrder.includes(key)) {
+      const title = sectionTitles[key] || `## ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+      markdown += `${title}\n\n${content}\n\n---\n\n`;
+    }
+  }
+
+  // Add usage section
+  markdown += `## Usage
+
+This instruction file is designed for use with ${getTargetDescription(target)}.
+
+### Integration Steps
+
+1. Save this file as \`${fileName}\` in your project root
+2. The AI assistant will automatically read these instructions
+3. Customize sections as needed for your specific workflow
+4. Re-run IntentCompiler when requirements change
+
+---
+
+*Generated with [IntentCompiler](https://github.com/intentcompiler) - Transform your intent into structured AI instructions*
+`;
+
+  return markdown;
+}
+
+/**
+ * Generate empty instruction template
+ */
+function generateEmptyInstruction(
+  context: UserContext,
+  intent: string,
+  target: InstructionTarget
+): string {
+  const fileName = TARGET_FILE_NAMES[target];
+  
+  return `# ${fileName} - AI Instruction File
+
+> **Generated by IntentCompiler**
+> **Project:** ${context.project || "Not specified"}
+
+---
+
+## Overview
+
+${intent || "No intent specified."}
+
+## Role & Identity
+
+[Define the AI's role and responsibilities for this project]
+
+## Project Context
+
+[Define project overview, tech stack, and architecture]
+
+## Rules & Constraints
+
+[Define rules, constraints, and execution guidelines]
+
+## Setup & Configuration
+
+[Typical commands, environment setup, or tools to be used]
+
+---
+
+*Generated with IntentCompiler*
+`;
+}
+
+function getTargetDescription(target: InstructionTarget): string {
+  switch (target) {
+    case "claude":
+      return "Claude AI (Anthropic)";
+    case "agents":
+      return "multi-agent systems";
+    case "gemini":
+      return "Google Gemini";
+    case "cursor":
+      return "Cursor IDE";
+    case "windsurf":
+      return "Windsurf IDE";
+    default:
+      return "AI assistants";
+  }
+}
+
+/**
+ * Quality scoring system for instruction files
+ */
+export function scoreInstruction(markdown: string, context: UserContext): InstructionQuality {
+  const issues: QualityIssue[] = [];
+  const suggestions: string[] = [];
+  
+  // Calculate individual scores
+  const structureScore = scoreStructure(markdown, issues);
+  const clarityScore = scoreClarity(markdown, issues, suggestions);
+  const completenessScore = scoreCompleteness(markdown, context, issues, suggestions);
+  const coherenceScore = scoreCoherence(markdown, issues);
+  const actionabilityScore = scoreActionability(markdown, issues, suggestions);
+  
+  // Calculate weighted overall score
+  const weights = {
+    structure: 0.15,
+    clarity: 0.25,
+    completeness: 0.25,
+    coherence: 0.15,
+    actionability: 0.20
+  };
+  
+  const overallScore = Math.round(
+    structureScore * weights.structure +
+    clarityScore * weights.clarity +
+    completenessScore * weights.completeness +
+    coherenceScore * weights.coherence +
+    actionabilityScore * weights.actionability
+  );
+  
+  // Calculate success rate (based on critical issues)
+  const criticalIssues = issues.filter(i => i.type === "error").length;
+  const successRate = Math.max(0, 100 - criticalIssues * 15);
+  
+  // Calculate clarity rate
+  const clarityRate = clarityScore;
+  
+  // Calculate completeness rate
+  const completenessRate = completenessScore;
+  
+  // Calculate coherence rate
+  const coherenceRate = coherenceScore;
+  
+  // Calculate actionability rate
+  const actionabilityRate = actionabilityScore;
+  
+  const passedThreshold = overallScore >= QUALITY_THRESHOLD;
+  
+  return {
+    overallScore,
+    successRate,
+    clarityRate,
+    completenessRate,
+    coherenceRate,
+    actionabilityRate,
+    issues,
+    suggestions,
+    passedThreshold
+  };
+}
+
+/**
+ * Score document structure
+ */
+function scoreStructure(markdown: string, issues: QualityIssue[]): number {
+  let score = 100;
+  
+  // Check for duplicate headers (critical issue)
+  const headerMatches = markdown.match(/^##\s+.+$/gm);
+  if (headerMatches) {
+    const headerCounts = new Map<string, number>();
+    for (const header of headerMatches) {
+      const normalized = header.toLowerCase().trim();
+      headerCounts.set(normalized, (headerCounts.get(normalized) || 0) + 1);
+    }
+    
+    for (const [header, count] of headerCounts) {
+      if (count > 1) {
+        score -= 15;
+        issues.push({
+          type: "error",
+          category: "structure",
+          message: `Duplicate header found: "${header}" appears ${count} times`,
+          severity: 8
+        });
+      }
+    }
+  }
+  
+  // Check for workflow metadata that shouldn't be in final output
+  const unwantedPatterns = [
+    { pattern: /Step History/i, name: "Step History" },
+    { pattern: /Acceptance Tests/i, name: "Acceptance Tests" },
+    { pattern: /No previous steps/i, name: "No previous steps placeholder" }
+  ];
+  
+  for (const { pattern, name } of unwantedPatterns) {
+    if (pattern.test(markdown)) {
+      score -= 10;
+      issues.push({
+        type: "error",
+        category: "structure",
+        message: `Unwanted workflow metadata found: ${name}`,
+        severity: 7
+      });
+    }
+  }
+  
+  // Check for required sections
+  const requiredSections = ["overview", "role", "context", "rules"];
+  const lowerMarkdown = markdown.toLowerCase();
+  
+  for (const section of requiredSections) {
+    if (!lowerMarkdown.includes(`## ${section}`) && !lowerMarkdown.includes(`# ${section}`)) {
+      score -= 10;
+      issues.push({
+        type: "warning",
+        category: "structure",
+        message: `Missing recommended section: ${section}`,
+        severity: 5
+      });
+    }
+  }
+  
+  // Check for proper heading hierarchy
+  const headingCount = (markdown.match(/^#+\s/gm) || []).length;
+  if (headingCount < 5) {
+    score -= 10;
+    issues.push({
+      type: "suggestion",
+      category: "structure",
+      message: "Document could use more section headings for better organization",
+      severity: 3
+    });
+  }
+  
+  // Check for code blocks
+  if (markdown.includes("```")) {
+    score += 5; // Bonus for code examples
+  }
+  
+  // Check for lists
+  if (markdown.includes("- ") || markdown.includes("* ")) {
+    score += 3; // Bonus for list formatting
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Score document clarity
+ */
+function scoreClarity(markdown: string, issues: QualityIssue[], suggestions: string[]): number {
+  let score = 100;
+  
+  // Check for overly long paragraphs
+  const paragraphs = markdown.split("\n\n").filter(p => p.trim().length > 0);
+  const longParagraphs = paragraphs.filter(p => p.length > 500);
+  
+  if (longParagraphs.length > 0) {
+    score -= longParagraphs.length * 5;
+    issues.push({
+      type: "warning",
+      category: "clarity",
+      message: `${longParagraphs.length} paragraph(s) are too long. Consider breaking them into smaller sections.`,
+      severity: 4
+    });
+    suggestions.push("Break long paragraphs into bullet points or smaller sections");
+  }
+  
+  // Check for clear action verbs
+  const actionVerbs = ["must", "should", "will", "can", "cannot", "always", "never"];
+  const hasActionVerbs = actionVerbs.some(verb => markdown.toLowerCase().includes(verb));
+  
+  if (!hasActionVerbs) {
+    score -= 10;
+    issues.push({
+      type: "suggestion",
+      category: "clarity",
+      message: "Document lacks clear directive language (must, should, will, etc.)",
+      severity: 3
+    });
+    suggestions.push("Add clear directives using words like 'must', 'should', 'always', 'never'");
+  }
+  
+  // Check for jargon without explanation
+  const jargonPatterns = [
+    /\bAPI\b(?!\s*\()/g,
+    /\bSDK\b/g,
+    /\bCLI\b/g,
+    /\bCRUD\b/g
+  ];
+  
+  for (const pattern of jargonPatterns) {
+    const matches = markdown.match(pattern);
+    if (matches && matches.length > 2) {
+      // Check if there's an explanation
+      if (!markdown.toLowerCase().includes("api (") && !markdown.toLowerCase().includes("api stands")) {
+        score -= 3;
+        suggestions.push(`Consider explaining technical terms like ${matches[0]} for clarity`);
+      }
+    }
+  }
+  
+  // Check for TODOs or placeholders
+  if (markdown.includes("[") && markdown.includes("]")) {
+    const placeholders = markdown.match(/\[[^\]]+\]/g);
+    if (placeholders && placeholders.length > 2) {
+      score -= placeholders.length * 5;
+      issues.push({
+        type: "warning",
+        category: "clarity",
+        message: `Found ${placeholders.length} placeholder(s) that need to be filled in`,
+        severity: 6
+      });
+    }
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Score document completeness
+ */
+function scoreCompleteness(markdown: string, context: UserContext, issues: QualityIssue[], suggestions: string[]): number {
+  let score = 100;
+  
+  // Check for essential content
+  const essentialContent = [
+    { name: "Project name", check: () => context.project ? markdown.includes(context.project) : true },
+    { name: "Intent description", check: () => markdown.length > 500 },
+    { name: "Rules or constraints", check: () => markdown.toLowerCase().includes("rule") || markdown.toLowerCase().includes("constraint") },
+    { name: "Action items", check: () => markdown.includes("- ") || markdown.includes("* ") },
+    { name: "Setup instructions", check: () => markdown.toLowerCase().includes("setup") || markdown.toLowerCase().includes("install") || markdown.toLowerCase().includes("config") }
+  ];
+  
+  for (const item of essentialContent) {
+    if (!item.check()) {
+      score -= 10;
+      issues.push({
+        type: "warning",
+        category: "completeness",
+        message: `Missing essential content: ${item.name}`,
+        severity: 5
+      });
+      suggestions.push(`Add ${item.name.toLowerCase()} to make the instruction more complete`);
+    }
+  }
+  
+  // Check document length
+  if (markdown.length < 1000) {
+    score -= 15;
+    issues.push({
+      type: "warning",
+      category: "completeness",
+      message: "Document is too short. A comprehensive instruction file should be at least 1000 characters.",
+      severity: 6
+    });
+    suggestions.push("Expand the instruction with more details and examples");
+  } else if (markdown.length > 10000) {
+    // Very long documents might need summarization
+    suggestions.push("Consider if the document could be more concise while maintaining completeness");
+  }
+  
+  // Check for tech stack mention if provided
+  if (context.techStack) {
+    const techTerms = context.techStack.toLowerCase().split(/[,\/\s]+/).filter(t => t.length > 2);
+    const mentionedTech = techTerms.some(tech => markdown.toLowerCase().includes(tech));
+    
+    if (!mentionedTech) {
+      score -= 5;
+      issues.push({
+        type: "suggestion",
+        category: "completeness",
+        message: "Tech stack provided but not mentioned in instruction",
+        severity: 3
+      });
+    }
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Score document coherence
+ */
+function scoreCoherence(markdown: string, issues: QualityIssue[]): number {
+  let score = 100;
+  
+  // Check for section transitions
+  const sections = markdown.split(/^##\s/gm).filter(s => s.trim().length > 0);
+  
+  if (sections.length > 1) {
+    // Check if sections seem to flow logically
+    const sectionTitles = sections.map(s => {
+      const firstLine = s.split("\n")[0];
+      return firstLine ? firstLine.toLowerCase() : "";
+    });
+    
+    // Check for duplicate content
+    const contentHashes = new Set<string>();
+    for (const section of sections) {
+      const content = section.substring(0, 100).toLowerCase().replace(/\s/g, "");
+      if (contentHashes.has(content)) {
+        score -= 10;
+        issues.push({
+          type: "warning",
+          category: "coherence",
+          message: "Potential duplicate content detected across sections",
+          severity: 4
+        });
+        break;
+      }
+      contentHashes.add(content);
+    }
+    
+    // Check for logical ordering
+    const expectedOrder = ["overview", "role", "context", "responsibilities", "rules", "setup"];
+    let lastFoundIndex = -1;
+    
+    for (const title of sectionTitles) {
+      const foundIndex = expectedOrder.findIndex(e => title.includes(e));
+      if (foundIndex !== -1 && foundIndex < lastFoundIndex) {
+        // Section might be out of order, but this is just a soft warning
+        issues.push({
+          type: "suggestion",
+          category: "coherence",
+          message: `Section "${title}" might be better placed earlier in the document`,
+          severity: 2
+        });
+        break;
+      }
+      if (foundIndex !== -1) {
+        lastFoundIndex = foundIndex;
+      }
+    }
+  }
+  
+  // Check for broken references
+  const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let linkMatch;
+  while ((linkMatch = linkPattern.exec(markdown)) !== null) {
+    const url = linkMatch[2];
+    if (url.startsWith("#") && !markdown.toLowerCase().includes(url.toLowerCase())) {
+      score -= 5;
+      issues.push({
+        type: "warning",
+        category: "coherence",
+        message: `Broken internal link: ${url}`,
+        severity: 4
+      });
+    }
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Score document actionability
+ */
+function scoreActionability(markdown: string, issues: QualityIssue[], suggestions: string[]): number {
+  let score = 100;
+  
+  // Check for actionable commands
+  const commandPatterns = [
+    /```(bash|shell|sh|cmd|powershell)/gi,
+    /npm\s+(run|install|test)/gi,
+    /yarn\s+(run|add|test)/gi,
+    /git\s+(clone|push|pull|commit)/gi,
+    /\bmake\s+\w+/gi
+  ];
+  
+  const hasCommands = commandPatterns.some(pattern => pattern.test(markdown));
+  
+  if (!hasCommands) {
+    score -= 10;
+    suggestions.push("Add executable commands or code examples to make instructions more actionable");
+  } else {
+    score += 5; // Bonus for commands
+  }
+  
+  // Check for step-by-step instructions
+  const numberedSteps = markdown.match(/^\d+\.\s/gm);
+  if (numberedSteps && numberedSteps.length >= 3) {
+    score += 5; // Bonus for numbered steps
+  } else {
+    suggestions.push("Consider adding numbered step-by-step instructions for complex tasks");
+  }
+  
+  // Check for examples
+  if (markdown.toLowerCase().includes("example") || markdown.toLowerCase().includes("e.g.") || markdown.toLowerCase().includes("for instance")) {
+    score += 5; // Bonus for examples
+  } else {
+    score -= 5;
+    issues.push({
+      type: "suggestion",
+      category: "actionability",
+      message: "Document lacks concrete examples",
+      severity: 3
+    });
+    suggestions.push("Add concrete examples to illustrate key concepts");
+  }
+  
+  // Check for decision criteria
+  const decisionWords = ["if", "when", "unless", "in case", "otherwise"];
+  const hasDecisions = decisionWords.some(word => markdown.toLowerCase().includes(word));
+  
+  if (!hasDecisions) {
+    suggestions.push("Add conditional logic or decision criteria for complex scenarios");
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Generate improvement suggestions based on quality issues
+ */
+export function generateImprovementPrompt(quality: InstructionQuality): string {
+  const improvements: string[] = [];
+  
+  if (quality.issues.length > 0) {
+    improvements.push("## Issues to Fix\n");
+    
+    const errors = quality.issues.filter(i => i.type === "error");
+    const warnings = quality.issues.filter(i => i.type === "warning");
+    const suggestions = quality.issues.filter(i => i.type === "suggestion");
+    
+    if (errors.length > 0) {
+      improvements.push("### Critical Issues:");
+      errors.forEach(e => improvements.push(`- ${e.message}`));
+    }
+    
+    if (warnings.length > 0) {
+      improvements.push("### Warnings:");
+      warnings.forEach(w => improvements.push(`- ${w.message}`));
+    }
+    
+    if (suggestions.length > 0) {
+      improvements.push("### Suggestions:");
+      suggestions.forEach(s => improvements.push(`- ${s.message}`));
+    }
+  }
+  
+  if (quality.suggestions.length > 0) {
+    improvements.push("\n## Improvement Suggestions\n");
+    quality.suggestions.forEach(s => improvements.push(`- ${s}`));
+  }
+  
+  return improvements.join("\n");
+}
+
+export { QUALITY_THRESHOLD, TARGET_FILE_NAMES };

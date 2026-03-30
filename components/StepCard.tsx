@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { WorkflowStep } from "@/lib/types";
+import type { WorkflowStep, StepValidation, UserContext } from "@/lib/types";
 import type { ToolConfig } from "@/lib/tools/registry";
 
 type StepCardProps = {
@@ -19,7 +19,9 @@ type StepCardProps = {
   onMoveDown: () => void;
   onTaskChange: (value: string) => void;
   onCriteriaChange: (patch: Partial<WorkflowStep>) => void;
-  availableSteps?: WorkflowStep[]; // For dependency/condition selection
+  availableSteps?: WorkflowStep[];
+  userContext?: UserContext;
+  modelConfig?: { provider: string; model: string };
 };
 
 const statusClass: Record<NonNullable<WorkflowStep["status"]>, string> = {
@@ -198,12 +200,63 @@ export default function StepCard({
   onMoveDown,
   onTaskChange,
   onCriteriaChange,
-  availableSteps = []
+  availableSteps = [],
+  userContext,
+  modelConfig
 }: StepCardProps) {
   const status = step.status ?? "idle";
   const showOutput = status !== "idle" || Boolean(step.output);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [activeTab, setActiveTab] = useState<"basic" | "tools" | "conditions" | "dependencies">("basic");
+  const [validation, setValidation] = useState<StepValidation | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [originalTask, setOriginalTask] = useState<string>(step.task);
+
+  // Validate step when task changes
+  const validateStep = useCallback(async (task: string) => {
+    if (!userContext || !task || task.length < 10) {
+      setValidation(null);
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const res = await fetch("/api/validate-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: { ...step, task },
+          userContext,
+          previousSteps: availableSteps.filter(s => s.status === "success"),
+          modelConfig
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setValidation(data);
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+    } finally {
+      setIsValidating(false);
+    }
+  }, [step, userContext, availableSteps, modelConfig]);
+
+  // Debounced validation
+  useEffect(() => {
+    if (step.task !== originalTask && step.task.length > 10) {
+      const timer = setTimeout(() => validateStep(step.task), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [step.task, originalTask, validateStep]);
+
+  // Track original task for edit detection
+  useEffect(() => {
+    if (step.task !== originalTask) {
+      setOriginalTask(step.task);
+    }
+  }, [step.task]);
 
   return (
     <article
@@ -261,8 +314,58 @@ export default function StepCard({
         value={step.task}
         onChange={(e) => onTaskChange(e.target.value)}
         rows={3}
-        className="w-full resize-y rounded-lg border border-border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition focus:border-accent"
+        className={`w-full resize-y rounded-lg border bg-surfaceAlt px-3 py-2 text-sm text-text outline-none transition ${
+          validation && !validation.isValid 
+            ? "border-amber-400/50 focus:border-amber-400" 
+            : validation && validation.isValid 
+            ? "border-emerald-400/50 focus:border-emerald-400"
+            : "border-border focus:border-accent"
+        }`}
       />
+      
+      {/* Validation Feedback */}
+      {isValidating && (
+        <div className="mt-2 flex items-center gap-2 text-xs text-muted">
+          <div className="h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <span>Validating...</span>
+        </div>
+      )}
+      
+      {validation && !isValidating && (
+        <div className={`mt-2 rounded-lg border p-2 text-xs ${
+          validation.isValid 
+            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200" 
+            : "border-amber-400/30 bg-amber-500/10 text-amber-200"
+        }`}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold uppercase tracking-wider">
+              {validation.isValid ? "✓ Valid" : "⚠ Issues Found"}
+            </span>
+            <span className="text-[10px]">
+              Context Score: {Math.round(validation.contextScore * 100)}%
+            </span>
+          </div>
+          
+          {validation.warnings.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {validation.warnings.map((warning, idx) => (
+                <li key={idx} className="text-[10px]">• {warning}</li>
+              ))}
+            </ul>
+          )}
+          
+          {validation.suggestions.length > 0 && (
+            <div className="mt-1">
+              <p className="text-[10px] font-semibold">Suggestions:</p>
+              <ul className="mt-0.5 space-y-0.5">
+                {validation.suggestions.map((suggestion, idx) => (
+                  <li key={idx} className="text-[10px] opacity-80">• {suggestion}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div>
