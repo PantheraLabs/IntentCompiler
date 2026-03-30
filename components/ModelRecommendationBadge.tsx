@@ -110,7 +110,7 @@ export default function ModelRecommendationBadge({ recommendation, loading, onAp
                     exit={{ opacity: 0, height: 0 }}
                     className="mt-2 flex flex-col gap-1"
                   >
-                    {recommendation.alternatives.map((alt, i) => (
+                    {recommendation.alternatives.map((alt: { model: string; provider: string; reason?: string; isFree?: boolean }, i: number) => (
                       <div
                         key={i}
                         className="flex items-center justify-between rounded-lg border border-border/40 bg-surfaceAlt/40 px-3 py-1.5"
@@ -128,7 +128,7 @@ export default function ModelRecommendationBadge({ recommendation, loading, onAp
                         </div>
                         <button
                           type="button"
-                          onClick={() => onApply({ provider: alt.provider, model: alt.model })}
+                          onClick={() => onApply({ provider: alt.provider as import('@/lib/types').Provider, model: alt.model })}
                           className="text-[10px] text-muted hover:text-accent transition-colors"
                         >
                           Use

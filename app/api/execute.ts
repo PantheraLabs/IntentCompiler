@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveModelConfig } from "@/lib/aicc";
 import { callJsonWithValidation } from "@/lib/jsonGuard";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
-import { evaluateCondition, isStepReady, type ExecutionContext } from "@/lib/executionEngine";
+import { evaluateCondition, type ExecutionContext } from "@/lib/executionEngine";
 import { executeTool } from "@/lib/registry";
 import { evaluateStepQuality, needsRepair, generateRepairPrompt } from "@/lib/stepQuality";
 import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";

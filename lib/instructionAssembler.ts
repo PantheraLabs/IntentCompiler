@@ -106,7 +106,7 @@ function organizeStepOutputs(steps: WorkflowStep[]): Map<string, string> {
     }
     
     // Clean the output - remove duplicate headers and workflow metadata
-    let cleanedOutput = cleanStepOutput(step.output || "", category);
+    const cleanedOutput = cleanStepOutput(step.output || "", category);
     
     // Merge or add content
     const existing = sections.get(category);
@@ -123,7 +123,7 @@ function organizeStepOutputs(steps: WorkflowStep[]): Map<string, string> {
 /**
  * Clean step output by removing duplicate headers and workflow metadata
  */
-function cleanStepOutput(output: string, category: string): string {
+function cleanStepOutput(output: string, _category: string): string {
   if (!output) return "";
   
   let cleaned = output;

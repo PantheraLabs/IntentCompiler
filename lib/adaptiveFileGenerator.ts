@@ -4,7 +4,7 @@
  */
 
 import type { UserContext, WorkflowStep } from "./types";
-import { analyzeProjectInput, type ProjectAnalysis, type FileDecision } from "./projectAnalyzer";
+import { analyzeProjectInput, type ProjectAnalysis } from "./projectAnalyzer";
 import { assembleInstruction, scoreInstruction, type InstructionTarget, type InstructionQuality } from "./instructionAssembler";
 
 export interface GeneratedFile {
@@ -141,7 +141,7 @@ async function generateSingleFile(
   context: UserContext,
   intent: string,
   target: InstructionTarget,
-  analysis: ProjectAnalysis
+  _analysis: ProjectAnalysis
 ): Promise<GeneratedFile[]> {
   // Use existing assembler for single file
   const content = assembleInstruction(steps, context, intent, target);
@@ -271,7 +271,7 @@ function mapDomainsToFileTypes(domains: string[], maxFiles: number): string[] {
  */
 function organizeStepsByDomain(
   steps: WorkflowStep[],
-  domains: string[]
+  _domains: string[]
 ): Map<string, WorkflowStep[]> {
   const organized = new Map<string, WorkflowStep[]>();
   
@@ -424,7 +424,7 @@ ${references.map(r => `- ${r}`).join("\n")}
  */
 function buildStepOutputs(
   steps: WorkflowStep[],
-  sections: string[]
+  _sections: string[]
 ): string {
   if (steps.length === 0) {
     return "## Content\n\n*No completed steps to include.*\n\n";

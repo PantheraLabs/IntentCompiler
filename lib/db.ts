@@ -1,12 +1,59 @@
-import { PrismaClient } from "@prisma/client";
+import Database from "better-sqlite3";
+import { join } from "path";
+import { tmpdir } from "os";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Create temporary database in system temp directory
+const dbPath = join(tmpdir(), `intentcompiler-${Date.now()}.db`);
+export const db = new Database(dbPath);
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+// Initialize tables
+export function initializeDatabase() {
+  // Workflows table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS workflows (
+      id TEXT PRIMARY KEY,
+      slug TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      intent TEXT,
+      context TEXT,
+      steps TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+  // Generated files table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS generated_files (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      quality INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (workflow_id) REFERENCES workflows (id)
+    )
+  `);
+
+  // Repository analysis cache
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS repo_cache (
+      repo_url TEXT PRIMARY KEY,
+      name TEXT,
+      description TEXT,
+      language TEXT,
+      tech_stack TEXT,
+      readme TEXT,
+      file_structure TEXT,
+      has_ci BOOLEAN,
+      has_docker BOOLEAN,
+      existing_docs TEXT,
+      cached_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
 
 /**
  * Generate a short, URL-friendly slug for shareable workflows
@@ -19,3 +66,12 @@ export function generateSlug(): string {
   }
   return slug;
 }
+
+// Initialize database on import
+initializeDatabase();
+
+// Clean up on process exit
+process.on("exit", () => {
+  db.close();
+  import("fs").then(({ unlinkSync }) => { try { unlinkSync(dbPath); } catch { /* ignore */ } });
+});

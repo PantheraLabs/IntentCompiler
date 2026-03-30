@@ -149,7 +149,7 @@ async function executeHttp(config: HttpToolConfig): Promise<ToolResult> {
   }
 }
 
-async function executeDb(config: DbToolConfig): Promise<ToolResult> {
+async function executeDb(_config: DbToolConfig): Promise<ToolResult> {
   // Note: This is a stub - actual DB execution requires driver setup
   return {
     success: false,
@@ -230,7 +230,7 @@ async function executeSearch(config: SearchToolConfig): Promise<ToolResult> {
 
 async function executeFile(config: FileToolConfig): Promise<ToolResult> {
   const { promises: fs } = await import("fs");
-  const path = await import("path");
+  const _path = await import("path");
   
   try {
     switch (config.operation) {

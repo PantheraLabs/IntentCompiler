@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { resolveModelConfig } from "@/lib/aicc";
-import { callJsonWithValidation } from "@/lib/jsonGuard";
 import type { WorkflowStep, UserContext, ModelConfig } from "@/lib/types";
 import {
   assembleInstruction,

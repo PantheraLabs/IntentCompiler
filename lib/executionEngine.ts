@@ -193,7 +193,7 @@ export function getParallelizableSteps(
   workflow: Workflow,
   completedSteps: Set<string>
 ): string[][] {
-  const { steps, edges } = workflow;
+  const { steps } = workflow;
   const stepMap = new Map(steps.map(s => [s.id, s]));
   
   // Group steps by dependency depth

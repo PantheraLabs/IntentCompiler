@@ -111,7 +111,7 @@ export async function evaluateStepQuality(
 
   // 5. Check dependency usage
   if (previousOutputs.length > 0 && step.dependencies?.length) {
-    const prevText = previousOutputs.join(" ").toLowerCase();
+    const _prevText = previousOutputs.join(" ").toLowerCase();
     const outputText = output.toLowerCase();
     // Check if output references concepts from previous steps
     const hasReference = step.dependencies.some(depId => {

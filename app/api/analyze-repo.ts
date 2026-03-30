@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { analyzeRepository, parseGitHubUrl } from "@/lib/repoAnalyzer";
+import { analyzeRepository, parseGitHubUrl, type RepoContext, type FileNode } from "@/lib/repoAnalyzer";
 
 type AnalyzeRepoRequest = {
   repoUrl: string;
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         hasDocker: repoContext.hasDocker,
         existingDocs: repoContext.existingDocs,
         fileCount: repoContext.fileStructure.length,
-        topFiles: repoContext.fileStructure.slice(0, 20).map(f => ({
+        topFiles: repoContext.fileStructure.slice(0, 20).map((f: FileNode) => ({
           name: f.name,
           type: f.type,
           path: f.path
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
 /**
  * Generate a summary of the repository
  */
-function generateSummary(repoContext: any): string {
+function generateSummary(repoContext: RepoContext): string {
   const parts: string[] = [];
   
   parts.push(`Analyzed ${repoContext.name}`);

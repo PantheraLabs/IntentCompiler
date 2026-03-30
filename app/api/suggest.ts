@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Intent is required." }, { status: 400 });
     }
 
-    const modelConfig = resolveModelConfig(body.modelConfig, "simple");
+    const modelConfig = await resolveModelConfig(body.modelConfig, "simple");
     const task = buildSuggestionTask(body.intent);
 
     const parsed = await callJsonWithValidation(

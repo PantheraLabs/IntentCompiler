@@ -9,8 +9,8 @@ import ExecutionPanel from "@/components/ExecutionPanel";
 import CompactDropdown from "@/components/ui/CompactDropdown";
 import FileTree from "@/components/FileTree";
 import RepoInput from "@/components/RepoInput";
-import { resolveExecutionOrder, createExecutionContext, getNextSteps, type ExecutionContext } from "@/lib/executionEngine";
-import { downloadAllAsZip, downloadFile } from "@/lib/fileExporter";
+import { resolveExecutionOrder, createExecutionContext, type ExecutionContext } from "@/lib/executionEngine";
+import { downloadAllAsZip } from "@/lib/fileExporter";
 import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
 
 type WorkflowContainerProps = {
@@ -34,14 +34,6 @@ type InstructionQuality = {
   issues: string[];
   suggestions: string[];
 };
-  type GenerateInstructionResponse = {
-    markdown?: string;
-    originalMarkdown?: string;
-    improvedMarkdown?: string;
-    quality?: InstructionQuality;
-    error?: string;
-  };
-
 export default function WorkflowContainer({ workflow, intent: propIntent, context: propContext, initialSteps, modelConfig }: WorkflowContainerProps) {
   // Support both new workflow format and legacy props
   const resolvedIntent = workflow?.intent || propIntent || "";
@@ -265,8 +257,8 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
   const [targetFile, setTargetFile] = useState<InstructionTarget>("claude");
   const [generatedMarkdown, setGeneratedMarkdown] = useState("");
   const [generatedQuality, setGeneratedQuality] = useState<InstructionQuality | null>(null);
-  const [originalMarkdown, setOriginalMarkdown] = useState("");
-  const [improvedMarkdown, setImprovedMarkdown] = useState("");
+  const [originalMarkdown] = useState("");
+  const [improvedMarkdown] = useState("");
   const [qualityGate, setQualityGate] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [livePreview, setLivePreview] = useState("");

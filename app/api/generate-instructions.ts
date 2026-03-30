@@ -39,10 +39,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing intent or context." }, { status: 400 });
     }
 
-    const baseProvider = resolveModelConfig(modelConfig, "complex").provider;
-    const refinementConfig = resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "complex");
-    const contextConfig = resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "structured");
-    const behaviorConfig = resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "complex");
+    const baseProvider = (await resolveModelConfig(modelConfig, "complex")).provider;
+    const refinementConfig = await resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "complex");
+    const contextConfig = await resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "structured");
+    const behaviorConfig = await resolveModelConfig({ provider: baseProvider, model: modelConfig?.model }, "complex");
     const behaviorTarget = target === "claude" || target === "agents" ? target : "generic";
     const userContextBlock = buildUserContextBlock(intent, context);
 

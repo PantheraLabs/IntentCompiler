@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Intent is required." }, { status: 400 });
     }
 
-    const modelConfig = resolveModelConfig(body.modelConfig, "complex");
+    const modelConfig = await resolveModelConfig(body.modelConfig, "complex");
     const userContextBlock = buildUserContextBlock(body.intent, body.context);
     const task = buildRefinementTask(body.intent);
 

@@ -123,6 +123,7 @@ function MarqueeCarousel({ items, onSelect }: { items: string[], onSelect: (val:
           ease: "linear",
           repeatType: "loop"
         }}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         whileHover={{ animationPlayState: "paused" } as any}
         className="flex shrink-0 gap-4"
       >

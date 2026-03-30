@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Refinement and structured context are required." }, { status: 400 });
     }
 
-    const modelConfig = resolveModelConfig(body.modelConfig, "structured");
+    const modelConfig = await resolveModelConfig(body.modelConfig, "structured");
     const userContextBlock = buildUserContextBlock(body.intent, body.context);
     const task = buildBehaviorTask(body.refinement, body.structuredContext, body.target || "generic");
 

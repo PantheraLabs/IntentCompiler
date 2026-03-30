@@ -19,6 +19,16 @@ export interface RepoContext {
   updatedAt: string;
 }
 
+interface GitHubRepoMeta {
+  name: string;
+  description: string | null;
+  language: string | null;
+  private: boolean;
+  size: number;
+  stargazers_count: number;
+  updated_at: string;
+}
+
 export interface FileNode {
   name: string;
   type: "file" | "dir";
@@ -66,7 +76,7 @@ export async function analyzeRepository(
   const fileStructure = await fetchRepoContents(owner, repo, "", githubToken);
   
   // Extract info
-  const techStack = extractTechStack(metadata.language, fileStructure);
+  const techStack = extractTechStack(metadata.language ?? "", fileStructure);
   const existingDocs = findDocumentationFiles(fileStructure);
   const hasCI = hasCIConfiguration(fileStructure);
   const hasDocker = hasDockerConfiguration(fileStructure);
@@ -76,8 +86,8 @@ export async function analyzeRepository(
   
   return {
     name: metadata.name,
-    description: metadata.description || "",
-    language: metadata.language || "",
+    description: metadata.description ?? "",
+    language: metadata.language ?? "",
     languages: {},
     techStack,
     fileStructure,
@@ -99,7 +109,7 @@ async function fetchRepoMetadata(
   owner: string,
   repo: string,
   token?: string
-): Promise<any> {
+): Promise<GitHubRepoMeta> {
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github.v3+json",
     "User-Agent": "IntentCompiler"

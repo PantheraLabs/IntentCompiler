@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertAnyProviderKey, callAICC, getModelsForProvider, getAvailableProviders } from "@/lib/aicc";
-import { analyzeIntent, buildRecommendation } from "@/lib/modelRouter";
+import { buildRecommendation } from "@/lib/modelRouter";
 import type { Provider } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     // Get actual available models per provider for context
     const modelsByProvider: Record<string, string[]> = {};
     await Promise.all(
-      availableProviders.map(async (p) => {
+      availableProviders.map(async (p: Provider) => {
         try {
           modelsByProvider[p] = await getModelsForProvider(p);
         } catch {
@@ -108,7 +108,7 @@ Select the best model from the catalog for this intent. Consider complexity, dom
 
     if (!routingModel.model) {
       // Fallback to internal recommendation if no valid LLM model is found to even make the routing decision
-      const fallback = buildRecommendation(intent, availableProviders, modelsByProvider as any);
+      const fallback = buildRecommendation(intent, availableProviders, modelsByProvider as Record<string, string[]>);
       return NextResponse.json(fallback);
     }
 
@@ -151,7 +151,7 @@ Select the best model from the catalog for this intent. Consider complexity, dom
           modelsByProvider[p] = await getModelsForProvider(p);
         })
       );
-      const fallback = buildRecommendation(intent, availableProviders, modelsByProvider as any);
+      const fallback = buildRecommendation(intent, availableProviders, modelsByProvider as Record<string, string[]>);
       return NextResponse.json(fallback);
     } catch (innerErr) {
       console.error("Fallback also failed:", innerErr);

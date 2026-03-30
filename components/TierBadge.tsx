@@ -114,7 +114,7 @@ export function StepLimitWarning({ tier, currentSteps, onUpgrade }: StepLimitWar
     <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-200">
       <p className="font-semibold">⚠️ Step Limit Reached</p>
       <p className="mt-1 text-[10px]">
-        You've reached the {config.maxSteps} step limit for the Free tier. 
+        You&apos;ve reached the {config.maxSteps} step limit for the Free tier. 
         Upgrade to Premium for unlimited workflow steps.
       </p>
       {onUpgrade && (

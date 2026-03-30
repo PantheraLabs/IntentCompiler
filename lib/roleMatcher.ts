@@ -3,7 +3,7 @@
  * Analyzes project requirements and recommends optimal roles
  */
 
-import { ROLE_DATABASE, ROLE_CATEGORIES, type RoleDefinition, type RoleCategory } from "./roleDatabase";
+import { ROLE_DATABASE, type RoleDefinition } from "./roleDatabase";
 import type { UserContext, RoleRecommendation } from "./types";
 
 export interface ProjectAnalysis {
@@ -16,7 +16,7 @@ export interface ProjectAnalysis {
 }
 
 export function analyzeProject(context: UserContext): ProjectAnalysis {
-  const { project, constraints, techStack, userTier = "free" } = context;
+  const { project, constraints, techStack } = context;
   
   // Analyze complexity based on project description and constraints
   const complexityScore = calculateComplexityScore(project, constraints, techStack);

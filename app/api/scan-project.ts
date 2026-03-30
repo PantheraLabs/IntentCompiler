@@ -17,7 +17,7 @@ export async function GET() {
     const cwd = process.cwd();
     const pkgPath = path.join(cwd, "package.json");
     
-    let scan: ProjectScan = {
+    const scan: ProjectScan = {
       name: "New Project",
       isNext: false,
       isReact: false,
