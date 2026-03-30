@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { WorkflowStep, StepValidation, UserContext } from "@/lib/types";
-import type { ToolConfig } from "@/lib/tools/registry";
+import type { ToolConfig } from "@/lib/registry";
 
 type StepCardProps = {
   step: WorkflowStep;
