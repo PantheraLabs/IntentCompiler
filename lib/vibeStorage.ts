@@ -1,4 +1,4 @@
-import type { VibeTemplate, UserContext } from "@/lib/core/types";
+import type { VibeTemplate } from "@/lib/types";
 
 const STORAGE_KEY = "intentCompilerVibeLibrary";
 
