@@ -54,17 +54,6 @@ AI coding assistants (Claude, Cursor, GitHub Copilot) have revolutionized softwa
 - **Model Support**: 1000+ models via OpenRouter, Llama via Groq, local via Ollama
 - **Next Milestone**: Workflow execution engine with step validation and project generation
 
-### 1.4 Funding & Resource Requirements
-
-| Phase | Timeline | Investment | Focus |
-|-------|----------|------------|-------|
-| **Bootstrap** | Current | Self-funded | MVP completion, core workflows |
-| **Seed** | Q3 2026 | $500K-$1M | Execution engine, cloud offering, team expansion |
-| **Series A** | 2027 | $3M-$5M | Enterprise features, marketplace, ecosystem |
-
----
-
-## 2. Core Concept & Philosophy
 
 ### 2.1 The Intent-Execution Gap
 
@@ -412,130 +401,6 @@ Each workflow follows a **4-stage refinement pipeline**:
 
 ---
 
-## 7. Business Model & Monetization
-
-### 7.1 Revenue Streams
-
-#### Stream 1: SaaS Subscriptions (Primary)
-
-| Tier | Price | Features | Target |
-|------|-------|----------|--------|
-| **Free** | $0 | 50 compiles/month, 3 vibes, basic models | Individual exploration |
-| **Pro** | $19/mo | Unlimited compiles, unlimited vibes, all models, workflow execution | Individual professionals |
-| **Team** | $49/user/mo | Team workspace, shared vibes, workflow library, priority support | Small teams (2-20) |
-| **Enterprise** | Custom | SSO, audit logs, private LLM, custom training, dedicated success | Large orgs (50+) |
-
-**Pricing Strategy**: Seat-based with usage limits to manage API costs. Free tier for viral growth, Pro for power users, Team for collaboration, Enterprise for compliance.
-
-#### Stream 2: Marketplace Commission (Secondary)
-
-- Community creators sell premium vibes and workflows
-- Platform takes 20-30% commission
-- Quality curation to maintain standards
-
-**Projected Revenue**: 15% of total by Year 2
-
-#### Stream 3: API Access (Tertiary)
-
-- Headless API for integration into other tools
-- Usage-based pricing (per 1000 compiles)
-- White-label options for platform builders
-
-**Projected Revenue**: 10% of total by Year 2
-
-### 7.2 Unit Economics
-
-**Cost Structure** (per compile):
-
-| Stage | Model Tier | Avg Tokens | Cost | Notes |
-|-------|------------|------------|------|-------|
-| Refinement | Speed | 1K | $0.001 | Cached for 5 minutes |
-| Context | Efficiency | 2K | $0.005 | |
-| Behavior | Efficiency | 3K | $0.008 | |
-| Execution | Quality | 10K | $0.05 | Only for workflows |
-| **Total (Instruction)** | | | **$0.014** | |
-| **Total (Workflow)** | | | **$0.064** | |
-
-**Gross Margins**:
-- Instruction generation: 85% (sell at $0.10 effective)
-- Workflow execution: 75% (sell at $0.25 effective)
-
-### 7.3 Financial Projections
-
-| Metric | Year 1 | Year 2 | Year 3 |
-|--------|--------|--------|--------|
-| **Users** | 10,000 | 100,000 | 500,000 |
-| **Paid Users** | 500 (5%) | 8,000 (8%) | 50,000 (10%) |
-| **ARPU** | $180 | $220 | $250 |
-| **MRR** | $7,500 | $147,000 | $1,040,000 |
-| **ARR** | $90,000 | $1.76M | $12.5M |
-| **API Costs** | $35,000 | $400,000 | $2.5M |
-| **Gross Profit** | $55,000 | $1.36M | $10M |
-| **Team Size** | 3 | 12 | 35 |
-| **Burn Rate** | $25K/mo | $80K/mo | $250K/mo |
-
-**Path to Profitability**: Month 18 with $500K MRR
-
----
-
-## 8. Go-to-Market Strategy
-
-### 8.1 Launch Strategy
-
-#### Phase 1: Stealth (Current)
-- **Duration**: 2 months
-- **Activities**: Build in public on Twitter/X, gather feedback from 50 beta users
-- **Goals**: Validate core workflows, iterate on UX, build waitlist
-
-#### Phase 2: Public Beta (Q3 2026)
-- **Duration**: 2 months
-- **Activities**: Product Hunt launch, Hacker News Show HN, influencer partnerships
-- **Goals**: 5,000 signups, 1,000 MAU, identify power users
-
-#### Phase 3: General Availability (Q4 2026)
-- **Duration**: Ongoing
-- **Activities**: Paid acquisition, content marketing, conference presence
-- **Goals**: 10,000 users, 500 paid subscribers, product-market fit signals
-
-### 8.2 Distribution Channels
-
-| Channel | Strategy | Investment | Expected CAC |
-|---------|----------|------------|--------------|
-| **Organic Social** | Twitter/X threads, demo videos, build-in-public | $0 (time) | $0 |
-| **Content SEO** | Technical blog, vibe templates as landing pages | $2K/mo | $5 |
-| **Product Hunt** | Coordinated launch, maker engagement | $0 | $0 |
-| **Newsletter Ads** | TLDR, Bytes, AI engineering newsletters | $5K/mo | $25 |
-| **Influencer** | YouTube demos, Twitter partnerships | $3K/mo | $30 |
-| **Community** | Discord, Reddit r/webdev, r/LocalLLaMA | $0 (time) | $0 |
-| **Events** | ReactConf, AI Engineer Summit, local meetups | $10K | $50 |
-| **Paid Social** | Twitter, LinkedIn retargeting | $10K/mo | $40 |
-
-**Blended CAC Target**: <$20 for free users, <$50 for paid conversions
-
-### 8.3 Content & Community Strategy
-
-**The "Vibe" Content Series**:
-- Weekly deep-dives into specific project types ("Building a Real-Time Chat App")
-- Template + walkthrough + live coding session
-- Distribution: YouTube, blog, newsletter
-
-**Community Programs**:
-- **Vibe Creator Grants**: $500 for high-quality community templates
-- **Intent Compiler Champions**: Power user recognition, early access, swag
-- **Office Hours**: Weekly AMA with founder, workflow reviews
-
-### 8.4 Partnership Strategy
-
-| Partner Type | Examples | Value Exchange |
-|--------------|----------|----------------|
-| **IDE Vendors** | Cursor, Windsurf, Zed | Native integration, distribution |
-| **Cloud Providers** | Vercel, Railway, AWS | Deploy templates, credits |
-| **AI Providers** | Groq, OpenRouter, Together | Co-marketing, preferred pricing |
-| **Education** | Scrimba, Frontend Masters | Course integration, certification |
-| **Open Source** | Next.js, Shadcn, Prisma | Template sponsorship |
-
----
-
 ## 9. Technical Deep Dive
 
 ### 9.1 Architecture Stack
@@ -777,15 +642,13 @@ interface QualityScore {
 | **Big Tech Competition** | High | High | Focus on multi-provider, export-first, community |
 | **API Cost Volatility** | Medium | Medium | Tier-based routing, caching, local LLM option |
 | **Slow User Adoption** | Medium | High | Free tier, viral templates, content marketing |
-| **Enterprise Sales Cycle** | High | Medium | Land-and-expand, self-serve first |
 
-### 10.3 Market Risks
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | **AI Model Convergence** | Medium | Medium | Position as orchestration layer, not model-specific |
 | **IDE Incumbents** | High | High | Partner vs. compete, open standards advocacy |
-| **Economic Downturn** | Medium | High | Cost-saving value prop, efficiency focus |
+| **Economic Downturn** | Medium | High | Efficiency focus, value-driven positioning |
 | **Regulatory Changes** | Low | High | Privacy-first design, export control compliance |
 
 ### 10.4 Mitigation Strategies
@@ -793,8 +656,8 @@ interface QualityScore {
 1. **Technical Diversification**: Never rely on single provider or model
 2. **Community Moat**: Build template ecosystem with network effects
 3. **Open Standards**: Advocate for portable instruction formats
-4. **Cost Discipline**: Maintain 75%+ gross margins through intelligent routing
-5. **Revenue Diversification**: SaaS + marketplace + API to reduce dependency
+4. **Operational Efficiency**: Intelligent routing to minimize resource usage
+5. **Platform Extensibility**: API + marketplace + integrations to reduce single-point dependencies
 
 ---
 
@@ -830,14 +693,6 @@ interface QualityScore {
 | Month-1 Retention | 25% | 35% |
 | Month-12 Retention | 15% | 25% |
 
-#### Revenue
-| Metric | Target (Y1) | Target (Y2) |
-|--------|-------------|-------------|
-| Free-to-Paid Conversion | 5% | 8% |
-| Average Revenue Per User | $180 | $220 |
-| Net Revenue Retention | 100% | 110% |
-| Gross Margin | 60% | 75% |
-
 #### Quality
 | Metric | Target |
 |--------|--------|
@@ -870,7 +725,7 @@ Every AI-native developer has Intent Compiler in their workflow:
 - 1M+ developers using the platform
 - 10,000+ community-contributed vibe templates
 - Standard export format adopted by major AI assistants
-- $50M ARR with path to profitability
+- Sustainable open-source ecosystem with commercial support options
 
 ### 12.2 The 5-Year Vision (2030)
 
@@ -911,17 +766,6 @@ The universal bridge between human intent and AI execution across all domains.
 **2028**: Standard export format adopted by AI providers  
 **2029**: University curricula teaching "Intent-Driven Development"  
 **2030**: Intent Compiler concepts in ISO standards for AI-assisted engineering
-
-### 12.5 Exit Opportunities
-
-| Path | Likelihood | Timeline | Rationale |
-|------|------------|----------|-----------|
-| **IPO** | Low | 2029+ | Requires $100M+ ARR, market conditions |
-| **Strategic Acquisition** | Medium | 2027-2028 | GitHub, Vercel, or AI lab seeking workflow tools |
-| **Private Equity** | Low | 2028+ | Cash flow positive, growth slowing |
-| **Stay Independent** | High | Ongoing | Sustainable business, mission-driven |
-
-**Preferred Outcome**: Build a sustainable, independent company that defines the category.
 
 ---
 
@@ -1103,37 +947,6 @@ Response: {
 - LLM-Native Backend (Streaming, structured gen)
 - Autonomous Dev Agent
 
-### Appendix D: Team Structure
-
-#### D.1 Current Team (Bootstrap Phase)
-
-| Role | Responsibility | Allocation |
-|------|----------------|------------|
-| **Founder/CEO** | Vision, fundraising, partnerships | 100% |
-| **Founding Engineer** | Core architecture, AICC, compilation engine | 100% |
-| **Design Contractor** | UI/UX, brand, visual design | 20% |
-
-#### D.2 Seed Phase Team (Q3 2026)
-
-| Role | Hire Priority | Responsibility |
-|------|---------------|----------------|
-| **Full-Stack Engineer** | P0 | Workflow execution, API development |
-| **AI/ML Engineer** | P0 | Model optimization, quality scoring |
-| **Frontend Engineer** | P1 | UI components, IDE integrations |
-| **DevOps Engineer** | P1 | Infrastructure, scaling, security |
-| **Community Manager** | P2 | Content, support, template curation |
-
-#### D.3 Series A Team (2027)
-
-| Function | Headcount |
-|----------|-----------|
-| Engineering | 8 |
-| Product/Design | 3 |
-| Growth/Marketing | 4 |
-| Customer Success | 2 |
-| Operations | 2 |
-| **Total** | **19** |
-
 ### Appendix E: Development Roadmap (Detailed)
 
 #### E.1 Q2 2026 (Current)
@@ -1188,7 +1001,7 @@ Response: {
 **Month 3: Launch**
 - Product Hunt launch
 - Public beta
-- Paid tier introduction
+- Community onboarding
 
 ### Appendix F: Glossary
 
@@ -1215,15 +1028,6 @@ Response: {
 |---------|------|--------|---------|
 | 0.1.0 | 2026-03 | Cascade | Initial technical reference |
 | 1.0.0 | 2026-03 | Cascade | Complete project proposal expansion |
-
----
-
-## Document Usage
-
-**For Investors**: Sections 1, 3, 4, 6, 7, 10, 12  
-**For Developers**: Sections 2, 5, 9, Appendices A-C  
-**For Partners**: Sections 1, 3, 8, 12  
-**For Team**: Entire document  
 
 ---
 
