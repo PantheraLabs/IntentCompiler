@@ -6,6 +6,8 @@ export type UserContext = {
   style: string;
   tone?: string;
   constraints: string[];
+  userTier?: "free" | "premium";
+  projectComplexity?: "simple" | "medium" | "complex";
 };
 
 export type VibeTemplate = {
@@ -132,4 +134,39 @@ export type BehaviorDefinition = {
   rules: string[];
   execution_style: string;
   output_format: string;
+};
+
+export type RoleRecommendation = {
+  role: string;
+  confidence: number;
+  reasoning: string;
+  category: string;
+  expertiseLevel: string;
+};
+
+export type WorkflowConfig = {
+  maxSteps: number;
+  allowCustomSteps: boolean;
+  allowRoleEditing: boolean;
+  enableValidation: boolean;
+  templateType: "instruction" | "development" | "custom";
+};
+
+export type StepValidation = {
+  isValid: boolean;
+  confidence: number;
+  warnings: string[];
+  suggestions: string[];
+  contextScore: number;
+};
+
+export type EditableStep = WorkflowStep & {
+  isEditing?: boolean;
+  validation?: StepValidation;
+  originalTask?: string;
+  editHistory?: Array<{
+    timestamp: string;
+    change: string;
+    reason: string;
+  }>;
 };

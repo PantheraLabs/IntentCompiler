@@ -4,6 +4,7 @@ import { callJsonWithValidation } from "@/lib/jsonGuard";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import { randomUUID } from "crypto";
 import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
+import { analyzeProject, recommendRoles, getWorkflowConfig } from "@/lib/roleMatcher";
 
 type CompileRequest = {
   intent: string;
@@ -21,7 +22,7 @@ const stepsSchema = {
       steps: {
         type: "array",
         minItems: 4,
-        maxItems: 6,
+        maxItems: 12,
         items: {
           type: "object",
           additionalProperties: false,
@@ -57,30 +58,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
     }
 
+    const userTier = (context.userTier || "free") as "free" | "premium";
+  const analysis = analyzeProject(context);
+  const workflowConfig = getWorkflowConfig(analysis, userTier);
+  const roleRecommendations = recommendRoles(analysis, userTier);
+
     const userContext = `USER CONTEXT:
 project: ${context.project || ""}
 audience: ${context.audience || ""}
 depth: ${context.depth || ""}
 style: ${context.style || ""}
-constraints: ${(context.constraints || []).join(", ")}`;
-
-    const task = `TASK:
-Generate a 4-6 step workflow that progressively builds an AI instruction file (like CLAUDE.md or .cursorrules) from the user intent and context.
-Each step should generate one section of the final instruction file.
-
-Section types to generate:
-- instruction_role: Define the AI's role and responsibilities for this project
-- instruction_context: Define project overview, tech stack, and architecture
-- instruction_rules: Define rules, constraints, and execution guidelines  
-- instruction_assembly: Combine all previous sections into final instruction file
-
-Return JSON with { "steps": [{ "id": number, "role": string, "task": string (generate the markdown content for this section), "status": "idle", "stepType": "instruction_role|instruction_context|instruction_rules|instruction_assembly", "sectionName": string (e.g., "Role", "Context", "Rules", "Final"), "outputFormat": "markdown", "mustInclude": string[], "mustAvoid": string[], "acceptanceTests": string[], "qualityBar": string }] }.
-
-Ensure steps build on each other logically. The final assembly step combines all previous outputs into a complete, formatted instruction file.
-Acceptance criteria must ensure each section is complete and the final file is ready to use.
-
-INTENT:
-${intent}`;
+constraints: ${(context.constraints || []).join(", ")}
+userTier: ${userTier}
+projectComplexity: ${analysis.complexity}
+recommendedRoles: ${roleRecommendations.map(r => r.role).join(", ")}`;
 
     const parsed = await callJsonWithValidation<{
       steps: Array<{
@@ -113,10 +104,11 @@ ${JSON.stringify(stepsSchema.schema)}`
     );
 
     // Generate steps with UUID-based IDs and create workflow structure
-    const stepIds: string[] = parsed.steps.slice(0, 6).map(() => randomUUID());
-    const steps: WorkflowStep[] = parsed.steps.slice(0, 6).map((step, index) => ({
+    const maxSteps = Math.min(parsed.steps.length, workflowConfig.maxSteps);
+    const stepIds: string[] = Array(maxSteps).fill(0).map(() => randomUUID());
+    const steps: WorkflowStep[] = parsed.steps.slice(0, maxSteps).map((step, index) => ({
       id: stepIds[index],
-      role: String(step.role || "instruction_compiler"),
+      role: String(step.role || roleRecommendations[index]?.role || "instruction_compiler"),
       task: String(step.task || ""),
       status: "idle" as const,
       stepType: (step.stepType || "analysis") as WorkflowStep["stepType"],
@@ -132,6 +124,15 @@ ${JSON.stringify(stepsSchema.schema)}`
     if (steps.length < 4) {
       return NextResponse.json({ error: "Failed to compile enough steps." }, { status: 500 });
     }
+
+    return NextResponse.json({ 
+      workflow, 
+      steps, 
+      modelConfig, 
+      analysis,
+      roleRecommendations,
+      workflowConfig 
+    });
 
     // Create sequential edges between steps
     const edges = steps.slice(0, -1).map((step, index) => ({
