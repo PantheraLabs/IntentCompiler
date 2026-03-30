@@ -8,6 +8,7 @@ import StepCard from "@/components/StepCard";
 import ExecutionPanel from "@/components/ExecutionPanel";
 import CompactDropdown from "@/components/ui/CompactDropdown";
 import FileTree from "@/components/FileTree";
+import RepoInput from "@/components/RepoInput";
 import { resolveExecutionOrder, createExecutionContext, getNextSteps, type ExecutionContext } from "@/lib/executionEngine";
 import { downloadAllAsZip, downloadFile } from "@/lib/fileExporter";
 import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
@@ -543,6 +544,22 @@ This instruction file is designed for use with ${targetFile === "claude" ? "Clau
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
+            {/* Repository Input */}
+            <RepoInput
+              onRepoAnalyzed={(result) => {
+                // Auto-populate context from repository analysis
+                setInstructionIntent(prev => prev || `Generate instruction files for ${result.name}`);
+                setInstructionContext({
+                  project: result.name,
+                  audience: "developers",
+                  style: "technical",
+                  constraints: result.existingDocs.length > 0 
+                    ? [`Existing docs: ${result.existingDocs.join(", ")}`]
+                    : []
+                });
+              }}
+            />
+            
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Refined Intent</label>
               <textarea
