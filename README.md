@@ -2,6 +2,10 @@
 
 > **Stop writing prompts. Compile intent into AI systems.**
 
+<p align="center">
+  <img src="assets/banner.png" width="100%"/>
+</p>
+
 Intent Compiler is a reactive workflow system that transforms high-level user goals into structured, executable execution plans. It bridges the gap between vague natural language and precise technical instructions, generating everything from step-by-step workflows to industry-standard instruction files like `CLAUDE.md`, `.cursorrules`, and `AGENTS.md`.
 
 ## Overview
