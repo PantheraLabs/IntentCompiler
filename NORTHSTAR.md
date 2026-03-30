@@ -29,13 +29,13 @@
 
 ### 1.1 The Opportunity
 
-AI coding assistants (Claude, Cursor, GitHub Copilot) have revolutionized software development, but they suffer from a critical limitation: **context fragmentation**. Developers spend 30-40% of their AI interaction time repeating project context, constraints, and preferences. Meanwhile, AI companies are racing to own the developer workflow, creating platform lock-in through proprietary instruction formats.
+AI coding assistants (Claude, Cursor, GitHub Copilot) have revolutionized software development, but they suffer from a critical limitation: **context fragmentation**. Developers spend significant time repeating project context, constraints, and preferences. Meanwhile, AI companies are racing to own the developer workflow, creating platform lock-in through proprietary instruction formats.
 
 **Intent Compiler** solves this by creating a **universal intent-to-execution layer** that:
 - Captures and refines developer intent into structured, actionable plans
 - Generates platform-native instruction files from a unified source
 - Orchestrates multi-step AI workflows with validation and quality gates
-- Remains provider-agnostic, supporting 1000+ models across Groq, OpenRouter, Ollama, OpenAI
+- Remains provider-agnostic, supporting a wide range of models across Groq, OpenRouter, Ollama, OpenAI
 
 ### 1.2 Key Value Propositions
 
@@ -49,9 +49,9 @@ AI coding assistants (Claude, Cursor, GitHub Copilot) have revolutionized softwa
 
 ### 1.3 Current Status & Traction
 
-- **MVP**: Functional with 6 instruction formats, 17 built-in vibe templates, multi-provider support
+- **MVP**: Functional with multiple instruction formats, built-in vibe templates, multi-provider support
 - **Technical Foundation**: Next.js 15, React 19, TypeScript 5.8, AICC abstraction layer
-- **Model Support**: 1000+ models via OpenRouter, Llama via Groq, local via Ollama
+- **Model Support**: Wide range of models via OpenRouter, Llama via Groq, local via Ollama
 - **Next Milestone**: Workflow execution engine with step validation and project generation
 
 
@@ -114,20 +114,23 @@ Vibes capture **tribal knowledge** that usually exists only in senior developers
 
 ## 3. Market Opportunity
 
-### 3.1 Market Size & Growth
+### 3.1 Market Context
 
-| Segment | TAM (2026) | CAGR | Intent Compiler Addressable |
-|---------|------------|------|------------------------------|
-| **AI Coding Assistants** | $8.2B | 35% | Instruction file generation, workflow orchestration |
-| **Low-Code/No-Code** | $22.5B | 28% | Intent-to-application compilation |
-| **DevOps Automation** | $12.8B | 22% | CI/CD workflow generation, infrastructure-as-code |
-| **Enterprise AI** | $45.6B | 41% | Multi-model orchestration, compliance, audit |
-| **Total Addressable** | **$89.1B** | **32%** | Cross-segment platform play |
+Intent Compiler operates at the intersection of multiple growing software markets:
+
+| Segment | Relevant Use Cases |
+|---------|-------------------|
+| **AI Coding Assistants** | Instruction file generation, workflow orchestration |
+| **Low-Code/No-Code** | Intent-to-application compilation |
+| **DevOps Automation** | CI/CD workflow generation, infrastructure-as-code |
+| **Enterprise AI** | Multi-model orchestration, compliance, audit |
+
+*Market size data to be researched and added based on industry reports.*
 
 ### 3.2 Target Personas
 
 #### Primary: The AI-Native Developer
-- **Profile**: 25-35 years old, uses Cursor/Claude/Windsurf daily, builds side projects, active on GitHub/Twitter
+- **Profile**: Developers who use Cursor/Claude/Windsurf daily, build side projects, active on GitHub/Twitter
 - **Pain Points**: Repetitive context setting, inconsistent AI output, API cost anxiety
 - **Value Prop**: Reusable instruction files, optimal model selection, team standardization
 - **Acquisition**: Twitter/X, GitHub, Hacker News, AI engineering newsletters
@@ -139,7 +142,7 @@ Vibes capture **tribal knowledge** that usually exists only in senior developers
 - **Acquisition**: Engineering blogs, conference talks, LinkedIn
 
 #### Tertiary: The Enterprise Architect
-- **Profile**: Large company (500+ engineers), evaluating AI tools for compliance and standardization
+- **Profile**: Large company engineering teams evaluating AI tools for compliance and standardization
 - **Pain Points**: Security concerns with cloud AI, vendor lock-in risk, need audit trails
 - **Value Prop**: Local LLM support, private infrastructure deployment, instruction governance
 - **Acquisition**: Direct sales, conference sponsorships, analyst briefings
@@ -148,7 +151,7 @@ Vibes capture **tribal knowledge** that usually exists only in senior developers
 
 **Why Now?**
 
-1. **AI Model Proliferation**: 1000+ models available, no clear winner, need intelligent routing
+1. **AI Model Proliferation**: Hundreds of models available, no clear winner, need intelligent routing
 2. **Instruction File Standardization**: CLAUDE.md, .cursorrules, .windsurfrules emerging as de facto standards
 3. **Developer Workflow Integration**: AI assistants becoming IDE-native, need systematic context management
 4. **Cost Pressure**: Teams hitting API rate limits, seeking optimization strategies
@@ -169,11 +172,11 @@ Vibes capture **tribal knowledge** that usually exists only in senior developers
 
 | Competitor | Strengths | Weaknesses | Our Differentiation |
 |------------|-----------|------------|---------------------|
-| **Cursor** | Deep IDE integration, fast iteration | Proprietary .cursorrules only, no multi-model | Export to any format, provider agnostic |
-| **Claude Code** | Excellent reasoning, large context | Limited to Anthropic models, expensive | Multi-provider, cost optimization, local LLM |
+| **Groq** | Deep IDE integration, fast iteration | Proprietary .cursorrules only, no multi-model | Export to any format, provider agnostic |
+| **Claude Code** | Excellent reasoning, large context | Limited to Anthropic models | Multi-provider, local LLM support |
 | **GitHub Copilot** | Ubiquitous, Microsoft ecosystem | Black box, no workflow orchestration | Transparent workflows, quality scoring, instruction files |
 | **Aider** | Great for existing codebases, multi-file | CLI-only, steep learning curve | Visual workflow builder, vibe templates, broader use cases |
-| **Supermaven** | Fast, cheap, 1M token context | Limited customization, no instruction files | Flexible instruction system, model choice |
+| **Supermaven** | Fast, large token context | Limited customization, no instruction files | Flexible instruction system, model choice |
 
 ### 4.2 Indirect Competitors
 
@@ -186,8 +189,8 @@ Vibes capture **tribal knowledge** that usually exists only in senior developers
 
 ### 4.3 Competitive Moats
 
-1. **Multi-Format Instruction Export**: Only platform supporting 6+ instruction file formats
-2. **AICC Abstraction**: 1000+ models, intelligent routing, seamless failover
+1. **Multi-Format Instruction Export**: Only platform supporting multiple instruction file formats
+2. **AICC Abstraction**: Broad model support, intelligent routing, seamless failover
 3. **Vibe Library Network Effects**: Community-contributed templates, winner-take-most dynamics
 4. **Quality Scoring System**: 6-dimensional evaluation, feedback loop for improvement
 5. **Zero-Click Context**: Project auto-detection reduces friction vs. manual configuration
@@ -267,7 +270,7 @@ User Intent → Refinement → Context → Behavior → Target-Specific Markdown
 ```
 **Use Case**: Setting up AI assistant context for a new project  
 **Output**: CLAUDE.md, .cursorrules, etc.  
-**Time**: 10-30 seconds  
+**Time**: Seconds  
 
 #### Workflow 2: Step-by-Step Execution Plan (In Development)
 ```
@@ -275,7 +278,7 @@ User Intent → Refinement → Context → Multi-Step Workflow → Validation �
 ```
 **Use Case**: Complex multi-file changes with dependencies  
 **Output**: Interactive step execution with rollback  
-**Time**: Minutes to hours (depending on complexity)  
+**Time**: Varies by complexity  
 
 #### Workflow 3: Project Scaffolding (Planned)
 ```
@@ -283,7 +286,7 @@ User Intent → Vibe Selection → Architecture Generation → File Tree → Dow
 ```
 **Use Case**: Greenfield project from concept to repository  
 **Output**: Complete project structure, initialized git, dependencies  
-**Time**: 1-5 minutes  
+**Time**: Minutes  
 
 #### Workflow 4: Workflow Library/Sharing (Planned)
 ```
@@ -328,17 +331,17 @@ Each workflow follows a **4-stage refinement pipeline**:
 
 ## 6. Feature Roadmap
 
-### 6.1 Phase 1: Foundation (Current — Q2 2026)
+### 6.1 Phase 1: Foundation (Current)
 
-**Status**: 80% Complete  
+**Status**: In Progress  
 **Theme**: Core compilation engine, multi-provider support, instruction export
 
 | Feature | Status | Priority |
 |---------|--------|----------|
 | AICC multi-provider abstraction | ✅ Complete | P0 |
-| 6 instruction file formats | ✅ Complete | P0 |
+| Multiple instruction file formats | ✅ Complete | P0 |
 | Intent refinement pipeline | ✅ Complete | P0 |
-| 17 built-in vibe templates | ✅ Complete | P0 |
+| Built-in vibe templates | ✅ Complete | P0 |
 | Model recommendation engine | ✅ Complete | P0 |
 | Quality scoring system | ✅ Complete | P0 |
 | Project auto-detection | ✅ Complete | P0 |
@@ -348,7 +351,7 @@ Each workflow follows a **4-stage refinement pipeline**:
 
 **Definition of Done**: Developer can input intent, get refined context, generate instruction file, and download in target format.
 
-### 6.2 Phase 2: Execution Engine (Q3 2026)
+### 6.2 Phase 2: Execution Engine (Next Phase)
 
 **Theme**: From static instructions to dynamic execution
 
@@ -363,9 +366,9 @@ Each workflow follows a **4-stage refinement pipeline**:
 | **Workflow Library** | Save, organize, and reuse personal workflows | User retention, productivity |
 | **Team Workspaces** | Shared workflow library, team vibes, permissioning | Team collaboration, enterprise readiness |
 
-**Success Metrics**: 50% of users create and execute at least one multi-step workflow.
+**Success Metrics**: A significant portion of users regularly create and execute multi-step workflows.
 
-### 6.3 Phase 3: Project Generation (Q4 2026)
+### 6.3 Phase 3: Project Generation (Future)
 
 **Theme**: From instructions to complete projects
 
@@ -380,9 +383,9 @@ Each workflow follows a **4-stage refinement pipeline**:
 | **Git Integration** | Initialize repo, initial commit, branch setup | Ready to collaborate |
 | **Deploy Templates** | Vercel, Railway, AWS, GCP one-click deploy | Faster time-to-production |
 
-**Success Metrics**: 20% of workflows generate complete, runnable projects.
+**Success Metrics**: A meaningful percentage of workflows generate complete, runnable projects.
 
-### 6.4 Phase 4: Intelligence & Ecosystem (2027)
+### 6.4 Phase 4: Intelligence & Ecosystem (Long-term)
 
 **Theme**: Network effects, advanced AI, enterprise scale
 
@@ -397,7 +400,7 @@ Each workflow follows a **4-stage refinement pipeline**:
 | **CI/CD Integration** | GitHub Actions, GitLab CI, CircleCI workflows | DevOps automation |
 | **Custom Model Fine-tuning** | Train models on company-specific patterns | Competitive advantage |
 
-**Success Metrics**: 1000+ community templates, 100+ enterprise customers.
+**Success Metrics**: Large collection of community templates with enterprise adoption.
 
 ---
 
@@ -432,7 +435,7 @@ Each workflow follows a **4-stage refinement pipeline**:
 
 ### 9.2 The AICC System (AI Control Center)
 
-**Purpose**: Unified interface for 1000+ models across multiple providers
+**Purpose**: Unified interface for broad model selection across multiple providers
 
 **Architecture**:
 
@@ -475,14 +478,13 @@ User Request
 ┌────────────┐           ┌─────────────┐
 │Fast/Cheap  │           │ Capable      │
 │ Model      │           │ Model        │
-│($0.001)    │           │ ($0.05)     │
 └────────────┘           └─────────────┘
 ```
 
 **Caching Strategy**:
-- Model lists: 2-10 minutes based on volatility
-- Compilation results: 5 minutes (intent + context fingerprint)
-- Provider availability: 30 seconds
+- Model lists: Short TTL based on volatility
+- Compilation results: Brief cache (intent + context fingerprint)
+- Provider availability: Quick refresh interval
 
 ### 9.3 The Compilation Pipeline
 
@@ -569,9 +571,9 @@ interface QualityScore {
 ```
 
 **Validation Gates**:
-- Score < 60: Regenerate with feedback
-- Score 60-80: Show warnings, allow proceed
-- Score 80+: Green light
+- Low scores: Regenerate with feedback
+- Medium scores: Show warnings, allow proceed
+- High scores: Green light
 
 ### 9.5 Data Model
 
@@ -666,40 +668,40 @@ interface QualityScore {
 ### 11.1 North Star Metric
 
 **Intent Compiles per Week**: Total successful compilations across all users
-- **Target**: 10,000/week by end of Year 1
+- **Target**: To be determined based on baseline measurements
 - **Why**: Direct measure of core value delivery
 
 ### 11.2 Key Performance Indicators
 
 #### Acquisition
-| Metric | Target (Y1) | Target (Y2) |
-|--------|-------------|-------------|
-| Website Visitors | 50,000/mo | 500,000/mo |
-| Signups | 10,000 | 100,000 |
-| Activation (first compile) | 60% | 70% |
+| Metric | Description |
+|--------|-------------|
+| Website Visitors | Volume of unique visitors to the platform |
+| Signups | New user registrations |
+| Activation | Percentage completing first successful compile |
 
 #### Engagement
-| Metric | Target (Y1) | Target (Y2) |
-|--------|-------------|-------------|
-| Weekly Active Users | 3,000 | 30,000 |
-| Compiles per User/Week | 3 | 5 |
-| Workflow Executions | 500/week | 10,000/week |
-| Vibe Template Usage | 30% of compiles | 40% of compiles |
+| Metric | Description |
+|--------|-------------|
+| Weekly Active Users | Unique users actively compiling per week |
+| Compiles per User | Average compilations per active user |
+| Workflow Executions | Step-by-step workflow runs completed |
+| Vibe Template Usage | Percentage of compiles using templates |
 
 #### Retention
-| Metric | Target (Y1) | Target (Y2) |
-|--------|-------------|-------------|
-| Week-1 Retention | 40% | 50% |
-| Month-1 Retention | 25% | 35% |
-| Month-12 Retention | 15% | 25% |
+| Metric | Description |
+|--------|-------------|
+| Week-1 Retention | Users returning within first week |
+| Month-1 Retention | Users returning within first month |
+| Long-term Retention | Sustained usage over extended periods |
 
 #### Quality
-| Metric | Target |
-|--------|--------|
-| Compile Success Rate | >95% |
-| Average Quality Score | >75/100 |
-| User Satisfaction (NPS) | >40 |
-| Support Tickets per User | <0.1/month |
+| Metric | Description |
+|--------|-------------|
+| Compile Success Rate | Percentage of successful compilations |
+| Average Quality Score | Aggregate quality metric across dimensions |
+| User Satisfaction | Net Promoter Score or similar |
+| Support Tickets | Volume of support requests per user |
 
 ### 11.3 Leading Indicators
 
@@ -722,8 +724,8 @@ Every AI-native developer has Intent Compiler in their workflow:
 - **Enterprises** use it to govern AI usage, ensure compliance, and optimize costs
 
 **Key Achievements**:
-- 1M+ developers using the platform
-- 10,000+ community-contributed vibe templates
+- Widespread developer adoption
+- Rich ecosystem of community-contributed vibe templates
 - Standard export format adopted by major AI assistants
 - Sustainable open-source ecosystem with commercial support options
 
@@ -746,7 +748,7 @@ The universal bridge between human intent and AI execution across all domains.
 - **Structured Generation**: Guarantee valid JSON/workflow structures via constrained decoding
 - **Multi-Modal Intent**: Incorporate diagrams, mockups, voice as intent inputs
 - **Feedback Loop Learning**: Improve compilation based on user corrections
-- **Cost Optimization**: Dynamic model selection based on real-time pricing
+- **API Cost Optimization**: Intelligent routing to cost-effective models
 
 #### Mid-Term (2-3 years)
 - **Agent Orchestration**: Coordinate multiple specialized AI agents
@@ -762,10 +764,11 @@ The universal bridge between human intent and AI execution across all domains.
 
 ### 12.4 Strategic Partnerships Vision
 
-**2027**: Native integration in 3+ major IDEs  
-**2028**: Standard export format adopted by AI providers  
-**2029**: University curricula teaching "Intent-Driven Development"  
-**2030**: Intent Compiler concepts in ISO standards for AI-assisted engineering
+Partnership milestones to be established based on market conditions and product readiness:
+- Native integration in major IDEs
+- Standard export format adopted by AI providers
+- University curricula teaching "Intent-Driven Development"
+- Industry standards for AI-assisted engineering
 
 ---
 
@@ -949,56 +952,46 @@ Response: {
 
 ### Appendix E: Development Roadmap (Detailed)
 
-#### E.1 Q2 2026 (Current)
+#### Current Phase (Foundation)
 
-**Sprint 1-2: Foundation**
-- [x] AICC provider abstraction
-- [x] Intent refinement pipeline
-- [x] Basic instruction generation
-- [x] Quality scoring
+**Completed:**
+- AICC provider abstraction
+- Intent refinement pipeline
+- Basic instruction generation
+- Quality scoring
+- Vibe mode UI
+- Model selection interface
+- Export preview
+- Project auto-detection
 
-**Sprint 3-4: UX Polish**
-- [x] Vibe mode UI
-- [x] Model selection interface
-- [x] Export preview
-- [x] Project auto-detection
+**In Progress:**
+- Workflow generation API
+- Basic execution UI
+- Step validation
+- Session persistence
 
-**Sprint 5-6: Workflow MVP**
-- [ ] Workflow generation API
-- [ ] Basic execution UI
-- [ ] Step validation
-- [ ] Session persistence
+#### Next Phase (Execution Engine)
 
-#### E.2 Q3 2026 (Execution Engine)
-
-**Month 1: Core Execution**
+**Planned Features:**
 - Workflow dependency resolution
 - Parallel step execution
 - Rollback mechanism
-
-**Month 2: Human-in-the-Loop**
 - Pause/resume functionality
 - Step editing mid-workflow
 - Approval gates
-
-**Month 3: Team Features**
 - Workflow sharing
 - Team workspaces
 - Permission model
 
-#### E.3 Q4 2026 (Project Generation)
+#### Future Phase (Project Generation)
 
-**Month 1: Scaffolding**
+**Planned Features:**
 - Full project generation
 - Dependency installation
 - Git initialization
-
-**Month 2: Patterns**
 - Architecture templates
 - Testing setup
 - Documentation generation
-
-**Month 3: Launch**
 - Product Hunt launch
 - Public beta
 - Community onboarding
