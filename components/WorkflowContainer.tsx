@@ -7,7 +7,9 @@ import { jsPDF } from "jspdf";
 import StepCard from "@/components/StepCard";
 import ExecutionPanel from "@/components/ExecutionPanel";
 import CompactDropdown from "@/components/ui/CompactDropdown";
+import FileTree from "@/components/FileTree";
 import { resolveExecutionOrder, createExecutionContext, getNextSteps, type ExecutionContext } from "@/lib/executionEngine";
+import { downloadAllAsZip, downloadFile } from "@/lib/fileExporter";
 import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
 
 type WorkflowContainerProps = {
@@ -268,6 +270,20 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
   const [generating, setGenerating] = useState(false);
   const [livePreview, setLivePreview] = useState("");
   const [showLivePreview, setShowLivePreview] = useState(false);
+  // Multi-file state
+  const [generatedFiles, setGeneratedFiles] = useState<Array<{
+    name: string;
+    type: string;
+    content: string;
+    quality: number;
+    dependencies: string[];
+  }>>([]);
+  const [isMultiFile, setIsMultiFile] = useState(false);
+  const [projectAnalysis, setProjectAnalysis] = useState<{
+    type: string;
+    complexity: string;
+    reasoning: string;
+  } | null>(null);
   const formatOptions: Array<{ value: InstructionTarget; label: string }> = [
     { value: "claude", label: "CLAUDE.md" },
     { value: "agents", label: "AGENTS.md" },
@@ -280,8 +296,8 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
   const generateInstruction = async () => {
     setGenerating(true);
     try {
-      // Use the new assembly API that sums up step outputs
-      const res = await fetch("/api/assemble-instruction", {
+      // Use the new adaptive project generation API
+      const res = await fetch("/api/generate-project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -289,26 +305,33 @@ export default function WorkflowContainer({ workflow, intent: propIntent, contex
           context: resolvedContext,
           intent: instructionIntent || resolvedIntent,
           target: targetFile,
-          modelConfig,
-          maxIterations: qualityGate ? 5 : 1
+          enhanceWithSkillLibrary: true
         })
       });
       const data = await res.json();
-      if (!res.ok || !data.markdown) throw new Error(data.error || "Assembly failed.");
+      if (!res.ok || !data.files || data.files.length === 0) {
+        throw new Error(data.error || "Generation failed.");
+      }
       
-      setGeneratedMarkdown(data.markdown);
-      setGeneratedQuality({
-        score: data.quality?.overallScore || 0,
-        issues: (data.quality?.issues || []).map((i: { message: string }) => i.message),
-        suggestions: data.quality?.suggestions || []
+      // Store multi-file output
+      setGeneratedFiles(data.files);
+      setIsMultiFile(data.isMultiFile);
+      setProjectAnalysis({
+        type: data.analysis.type,
+        complexity: data.analysis.complexity,
+        reasoning: data.analysis.reasoning
       });
       
-      // Store iteration history for display
-      if (data.iterations && data.iterations.length > 1) {
-        console.log(`Improved from ${data.improvedFrom}% to ${data.quality?.overallScore}% in ${data.iteration} iterations`);
-      }
+      // For backward compatibility, set the first file as the main markdown
+      setGeneratedMarkdown(data.files[0].content);
+      setGeneratedQuality({
+        score: data.totalQuality,
+        issues: [],
+        suggestions: data.analysis.reasoning ? [data.analysis.reasoning] : []
+      });
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Assembly failed.");
+      setError(err instanceof Error ? err.message : "Generation failed.");
     } finally {
       setGenerating(false);
     }
@@ -567,31 +590,62 @@ This instruction file is designed for use with ${targetFile === "claude" ? "Clau
 
         {generatedMarkdown && (
           <div className="mt-8 border-t border-border pt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted">Preview & Export</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={downloadMD}
-                  className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text transition hover:border-accent"
-                >
-                  Download .MD
-                </button>
-                <button
-                  onClick={downloadPDF}
-                  className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text transition hover:border-accent"
-                >
-                  Download .PDF
-                </button>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(generatedMarkdown);
-                  }}
-                  className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent transition hover:border-accent"
-                >
-                  Copy
-                </button>
+            {/* Project Analysis Info */}
+            {projectAnalysis && (
+              <div className="mb-4 rounded-lg border border-border bg-surfaceAlt/50 px-4 py-3">
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="rounded-full bg-accent/20 px-2 py-0.5 font-medium text-accent capitalize">
+                    {projectAnalysis.type}
+                  </span>
+                  <span className="rounded-full bg-muted/20 px-2 py-0.5 font-medium text-muted capitalize">
+                    {projectAnalysis.complexity}
+                  </span>
+                  {isMultiFile && (
+                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 font-medium text-emerald-400">
+                      {generatedFiles.length} files
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-[11px] text-muted">{projectAnalysis.reasoning}</p>
               </div>
-            </div>
+            )}
+            
+            {/* Multi-file view */}
+            {isMultiFile && generatedFiles.length > 1 ? (
+              <FileTree
+                files={generatedFiles}
+                isMultiFile={true}
+                onDownloadAll={() => downloadAllAsZip(generatedFiles, resolvedContext.project || "project")}
+                onCopyFile={(file) => navigator.clipboard.writeText(file.content)}
+              />
+            ) : (
+              /* Single file view */
+              <>
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted">Preview & Export</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={downloadMD}
+                      className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text transition hover:border-accent"
+                    >
+                      Download .MD
+                    </button>
+                    <button
+                      onClick={downloadPDF}
+                      className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-text transition hover:border-accent"
+                    >
+                      Download .PDF
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedMarkdown);
+                      }}
+                      className="rounded-md border border-border bg-surfaceAlt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent transition hover:border-accent"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
             {generatedQuality ? (
               <div className="mb-4 rounded-lg border border-accent/40 bg-accent/5 p-3">
                 <div className="flex items-center justify-between">
@@ -645,6 +699,8 @@ This instruction file is designed for use with ${targetFile === "claude" ? "Clau
               <div className="prose prose-invert prose-sm max-w-none rounded-lg border border-border bg-black/20 p-5 max-h-[400px] overflow-auto">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedMarkdown}</ReactMarkdown>
               </div>
+            )}
+              </>
             )}
           </div>
         )}
