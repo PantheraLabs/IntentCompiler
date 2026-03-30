@@ -17,6 +17,9 @@ let groqModelCache: { models: string[]; expiresAt: number } | null = null;
 let ollamaModelCache: { models: string[]; expiresAt: number } | null = null;
 let openRouterModelCache: { models: string[]; expiresAt: number } | null = null;
 
+// Clear cache to ensure we get latest free models
+openRouterModelCache = null;
+
 function isTextFirstModel(model: string) {
   const id = model.toLowerCase();
   const blockedKeywords = [
