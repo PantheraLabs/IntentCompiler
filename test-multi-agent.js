@@ -533,15 +533,79 @@ class MockAgentOrchestrator {
 // ============================================
 
 async function runMultiAgentTest() {
-  logger.info(`🧪 MULTI-AGENT SYSTEM TEST STARTED`, { sessionId: 'cli-test-session' }, 'MultiAgentTest');
-  logger.info(`==========================`);
+  // Welcome message
+  console.log(`\n🤖 IntentCompiler - Multi-Agent System Test`);
+  console.log(`=====================================\n`);
+  console.log(`This test will demonstrate the 5 specialized agents working together:`);
+  console.log(`🏗️  Architect Agent - Designs workflow structure`);
+  console.log(`📝 Instructor Agent - Generates instructions`);
+  console.log(`✅ Validator Agent - Validates quality`);
+  console.log(`🔍 Reviewer Agent - Reviews and optimizes`);
+  console.log(`📚 Documenter Agent - Creates documentation\n`);
   
-  // Test data
-  const workflow = mockSchemas.Workflow;
-  const context = mockSchemas.UserContext;
+  logger.info(`🧪 MULTI-AGENT SYSTEM TEST STARTED`, { sessionId: 'cli-test-session' }, 'MultiAgentTest');
+  
+  // Get user input for intent
+  const readline = require('readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  // Ask for intent
+  const intent = await new Promise((resolve) => {
+    rl.question('🎯 Enter your intent (e.g., "Build a portfolio website with React"): ', (answer) => {
+      resolve(answer.trim());
+    });
+  });
+
+  // Ask for project name
+  const project = await new Promise((resolve) => {
+    rl.question('📝 Project name (optional, press Enter to skip): ', (answer) => {
+      resolve(answer.trim() || 'Untitled Project');
+    });
+  });
+
+  // Ask for tech stack
+  const techStack = await new Promise((resolve) => {
+    rl.question('⚙️  Tech stack (optional, press Enter for default): ', (answer) => {
+      resolve(answer.trim() || 'React, TypeScript, Tailwind CSS');
+    });
+  });
+
+  // Ask for audience
+  const audience = await new Promise((resolve) => {
+    rl.question('👥 Target audience (optional, press Enter for default): ', (answer) => {
+      resolve(answer.trim() || 'General users');
+    });
+  });
+
+  // Ask for constraints
+  const constraints = await new Promise((resolve) => {
+    rl.question('⚠️  Constraints (optional, press Enter to skip): ', (answer) => {
+      const answerTrimmed = answer.trim();
+      resolve(answerTrimmed ? answerTrimmed.split(',').map(c => c.trim()) : []);
+    });
+  });
+
+  rl.close();
+
+  // Create test data from user input
+  const workflow = {
+    ...mockSchemas.Workflow,
+    intent: intent || 'Build a simple web application'
+  };
+
+  const context = {
+    project: project,
+    techStack: techStack,
+    audience: audience,
+    constraints: constraints
+  };
+
   const modelConfig = mockModelConfig;
   
-  logger.info(`📝 Test Input:`, {
+  logger.info(`📝 User Input:`, {
     intent: workflow.intent,
     project: context.project,
     techStack: context.techStack,
@@ -623,8 +687,57 @@ async function runMultiAgentTest() {
       successfulTasks: Array.from(result.results.values()).filter(r => r.success).length
     }, 'MultiAgentTest');
     
+    // Show summary of generated content
+    console.log(`\n📋 GENERATED CONTENT SUMMARY:`);
+    console.log(`===========================`);
+    
+    for (const [taskId, taskResult] of result.results) {
+      const task = result.plan.tasks.find(t => t.id === taskId);
+      if (taskResult.success && taskResult.output) {
+        console.log(`\n${task.agentType.toUpperCase()} Agent Generated:`);
+        
+        switch (task.agentType) {
+          case 'architect':
+            console.log(`   Workflow: ${taskResult.output.phases.join(' → ')}`);
+            console.log(`   Strategy: ${taskResult.output.parallelizable ? 'Parallel execution' : 'Sequential'}`);
+            console.log(`   Steps: ${taskResult.output.estimatedSteps} estimated`);
+            break;
+          case 'instructor':
+            console.log(`   Instructions for: ${task.task}`);
+            taskResult.output.forEach((section, index) => {
+              console.log(`   ${index + 1}. ${section.title}`);
+              console.log(`      ${section.content}`);
+              if (section.steps && section.steps.length > 0) {
+                section.steps.forEach((step, stepIndex) => {
+                  console.log(`      ${stepIndex + 1}) ${step}`);
+                });
+              }
+            });
+            break;
+          case 'validator':
+            console.log(`   Quality Score: ${(taskResult.output.confidence * 100).toFixed(0)}%`);
+            console.log(`   Issues: ${taskResult.output.issues.length}`);
+            console.log(`   Suggestions: ${taskResult.output.suggestions.join(', ')}`);
+            break;
+          case 'reviewer':
+            console.log(`   Overall Quality: ${(taskResult.output.overallQuality * 100).toFixed(0)}%`);
+            console.log(`   Optimizations: ${taskResult.output.optimizations.join(', ')}`);
+            console.log(`   Performance: ${taskResult.output.performance.estimatedSpeed}`);
+            break;
+          case 'documenter':
+            console.log(`   Files Generated: ${Object.keys(taskResult.output).join(', ')}`);
+            console.log(`   README Preview: ${taskResult.output.readme.split('\n')[0]}`);
+            break;
+        }
+      }
+    }
+    
+    console.log(`\n📁 Logs saved to: logs/test-multi-agent.log`);
+    console.log(`🎯 Test completed in ${result.totalExecutionTime}ms`);
+    
   } catch (error) {
     logger.error(`❌ Test failed:`, { error: error.message, stack: error.stack }, 'MultiAgentTest');
+    console.error(`❌ Test failed:`, error.message);
   }
 }
 
