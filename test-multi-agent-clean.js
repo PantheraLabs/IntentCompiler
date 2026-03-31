@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Multi-Agent System Test Case with Real-Time Communication
+ * IntentCompiler Multi-Mode Instruction File Generator
+ * Generates DETAILED, AI-PROMPTS, and QUICK-START instruction files
  * Run with: node test-multi-agent-clean.js
  */
 
-// Mock imports (since we're not in the full Next.js environment)
 const { writeFileSync, existsSync, mkdirSync } = require('fs');
 const { join } = require('path');
+const readline = require('readline');
 
 // Simple logger for CLI testing
 class CLILogger {
