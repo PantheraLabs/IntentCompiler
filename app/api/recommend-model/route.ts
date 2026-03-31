@@ -14,7 +14,7 @@ const MODEL_CATALOG = [
   // Groq (free with rate limits, very fast)
   { provider: "groq", model: "llama-3.3-70b-versatile", free: true, strengths: "High quality, general purpose, fast inference, 128k context" },
   { provider: "groq", model: "llama-3.1-8b-instant", free: true, strengths: "Ultra fast, simple tasks, low latency" },
-  { provider: "groq", model: "mixtral-8x7b-32768", free: true, strengths: "Instruction following, code, general, 32k context" },
+  { provider: "groq", model: "mixtral-8x7b-32768", free: false, strengths: "DECOMMISSIONED - do not use" },
   { provider: "groq", model: "gemma2-9b-it", free: true, strengths: "Efficient, general chat, Google architecture" },
   // OpenRouter free models
   { provider: "openrouter", model: "deepseek/deepseek-r1:free", free: true, strengths: "Deep chain-of-thought reasoning, research, complex analysis" },

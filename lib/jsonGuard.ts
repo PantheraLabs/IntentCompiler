@@ -59,21 +59,56 @@ export async function callJsonWithValidation<T>(
     // Clean up common issues - be careful not to corrupt valid JSON strings
     jsonStr = jsonStr
       .replace(/^\s*[^{\[]*/, '') // Remove text before JSON starts
-      .replace(/[^\]}\s]*\s*$/, ''); // Remove text after JSON ends
+      .replace(/[^\]}\s]*\s*$/, '') // Remove text after JSON ends
+      .replace(/,\s*}/, '}') // Remove trailing comma before closing brace
+      .replace(/,\s*]/, ']'); // Remove trailing comma before closing bracket
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (err) {
       const parseError = err instanceof Error ? err.message : "Invalid JSON";
-      if (attempt < maxAttempts) {
-        currentMessages = currentMessages.concat({
-          role: "user",
-          content: `Your response was not valid JSON (error: ${parseError}). Response was: ${jsonStr.slice(0, 200)}. Return JSON only that matches the schema.`
-        });
-        continue;
+      
+      // Try to fix common JSON escaping issues
+      if (parseError.includes('Unexpected string') || parseError.includes('Unexpected token')) {
+        try {
+          // Try to extract just the output value and re-wrap it
+          const outputMatch = jsonStr.match(/"output"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+          if (outputMatch) {
+            const rawOutput = outputMatch[1];
+            // Properly escape the output for JSON
+            const escapedOutput = rawOutput
+              .replace(/\\/g, '\\\\')  // Escape backslashes
+              .replace(/"/g, '\\"')    // Escape quotes
+              .replace(/\n/g, '\\n')   // Escape newlines
+              .replace(/\r/g, '\\r')   // Escape carriage returns
+              .replace(/\t/g, '\\t');  // Escape tabs
+            
+            const fixedJson = `{"output":"${escapedOutput}"}`;
+            parsed = JSON.parse(fixedJson);
+          } else {
+            throw new Error("Could not extract output value");
+          }
+        } catch (fixErr) {
+          if (attempt < maxAttempts) {
+            currentMessages = currentMessages.concat({
+              role: "user",
+              content: `Your response was not valid JSON (error: ${parseError}). Response was: ${jsonStr.slice(0, 200)}. Return JSON only that matches the schema.`
+            });
+            continue;
+          }
+          throw new Error(`Failed to parse JSON after ${attempt} attempts. Raw response: ${lastRaw.slice(0, 500)}`);
+        }
+      } else {
+        if (attempt < maxAttempts) {
+          currentMessages = currentMessages.concat({
+            role: "user",
+            content: `Your response was not valid JSON (error: ${parseError}). Response was: ${jsonStr.slice(0, 200)}. Return JSON only that matches the schema.`
+          });
+          continue;
+        }
+        throw new Error(`Failed to parse JSON after ${attempt} attempts. Raw response: ${lastRaw.slice(0, 500)}`);
       }
-      throw new Error(`Failed to parse JSON after ${attempt} attempts. Raw response: ${lastRaw.slice(0, 500)}`);
     }
 
     const validation = validateJson<T>(schema, parsed);

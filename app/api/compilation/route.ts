@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { resolveModelConfig } from "@/lib/aicc";
 import { callJsonWithValidation } from "@/lib/jsonGuard";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
-import { randomUUID } from "crypto";
-import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
+import { IntelligentQuestioner } from "@/lib/intelligentQuestioner";
 import { analyzeProject, recommendRoles, getWorkflowConfig } from "@/lib/roleMatcher";
+import type { ModelConfig, UserContext, WorkflowStep, Workflow } from "@/lib/types";
+import { randomUUID } from "crypto";
 
 type CompileRequest = {
   intent: string;
@@ -56,6 +57,18 @@ export async function POST(req: Request) {
 
     if (!intent || !context) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
+    }
+
+    // INTELLIGENT QUESTIONING: Check if we need to ask the user for more information
+    const questionAnalysis = IntelligentQuestioner.analyzeAndAskQuestions(intent, context);
+    
+    if (questionAnalysis.needsQuestions) {
+      return NextResponse.json({
+        needsQuestions: true,
+        questions: questionAnalysis.questions,
+        confidence: questionAnalysis.confidence,
+        message: "I need a few more details to create the perfect workflow for you."
+      });
     }
 
     const userTier = (context.userTier || "free") as "free" | "premium";
@@ -134,20 +147,37 @@ ${JSON.stringify(stepsSchema.schema)}`
     // Generate steps with UUID-based IDs and create workflow structure
     const maxSteps = Math.min(parsed.steps.length, workflowConfig.maxSteps);
     const stepIds: string[] = Array(maxSteps).fill(0).map(() => randomUUID());
-    const steps: WorkflowStep[] = parsed.steps.slice(0, maxSteps).map((step, index) => ({
-      id: stepIds[index]!,
-      role: String(step.role || roleRecommendations[index]?.role || "instruction_compiler"),
-      task: String(step.task || ""),
-      status: "idle" as const,
-      stepType: (step.stepType || "analysis") as WorkflowStep["stepType"],
-      sectionName: step.sectionName || `Section ${index + 1}`,
-      outputFormat: "markdown" as const,
-      mustInclude: Array.isArray(step.mustInclude) ? step.mustInclude : [],
-      mustAvoid: Array.isArray(step.mustAvoid) ? step.mustAvoid : [],
-      acceptanceTests: Array.isArray(step.acceptanceTests) ? step.acceptanceTests : [],
-      qualityBar: typeof step.qualityBar === "string" ? step.qualityBar : "",
-      dependencies: index > 0 ? [stepIds[index - 1]!] : undefined
-    }));
+    const steps: WorkflowStep[] = parsed.steps.slice(0, maxSteps).map((step, index) => {
+      // Ensure role diversity - don't let AI repeat roles
+      const usedRoles = steps.slice(0, index).map(s => s.role);
+      let assignedRole = String(step.role || roleRecommendations[index]?.role || "instruction_compiler");
+      
+      // If AI suggested a role that's already used, fall back to recommended role
+      if (step.role && usedRoles.includes(step.role)) {
+        assignedRole = String(roleRecommendations[index]?.role || "instruction_compiler");
+      }
+      
+      // If recommended role is also already used, find an unused one
+      if (usedRoles.includes(assignedRole)) {
+        const availableRoles = roleRecommendations.map(r => r.role).filter(role => !usedRoles.includes(role));
+        assignedRole = availableRoles[0] || "instruction_compiler";
+      }
+      
+      return {
+        id: stepIds[index]!,
+        role: assignedRole,
+        task: String(step.task || ""),
+        status: "idle" as const,
+        stepType: (step.stepType || "analysis") as WorkflowStep["stepType"],
+        sectionName: step.sectionName || `Section ${index + 1}`,
+        outputFormat: "markdown" as const,
+        mustInclude: Array.isArray(step.mustInclude) ? step.mustInclude : [],
+        mustAvoid: Array.isArray(step.mustAvoid) ? step.mustAvoid : [],
+        acceptanceTests: Array.isArray(step.acceptanceTests) ? step.acceptanceTests : [],
+        qualityBar: typeof step.qualityBar === "string" ? step.qualityBar : "",
+        dependencies: index > 0 ? [stepIds[index - 1]!] : undefined
+      };
+    });
 
     if (steps.length < 4) {
       return NextResponse.json({ error: "Failed to compile enough steps." }, { status: 500 });

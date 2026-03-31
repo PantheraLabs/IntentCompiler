@@ -41,6 +41,9 @@ export async function POST(req: Request) {
     
     for (const { provider, models } of providersWithModels) {
       for (const model of models) {
+        // Skip decommissioned models
+        if (model === "mixtral-8x7b-32768") continue;
+        
         const modelInfo = analyzeModel(model, provider);
         
         // For OpenRouter, check if model is actually free by looking at pricing

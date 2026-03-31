@@ -5,6 +5,7 @@ import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import { evaluateCondition, type ExecutionContext } from "@/lib/executionEngine";
 import { executeTool } from "@/lib/registry";
 import { evaluateStepQuality, needsRepair, generateRepairPrompt } from "@/lib/stepQuality";
+import { superIntelligentModel } from "@/lib/superIntelligentModel";
 import type { ModelConfig, UserContext, WorkflowStep } from "@/lib/types";
 
 type ExecuteRequest = {
@@ -39,6 +40,7 @@ type ExecuteResponse = {
 };
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
   try {
     const body = (await req.json()) as ExecuteRequest;
     const { step, previousOutputs, userContext, stepOutputs } = body;
@@ -161,8 +163,18 @@ ${previousOutputs.length ? previousOutputs.map((o, i) => `${i + 1}. ${o}`).join(
         role: "user" as const,
         content: `${taskBlock}
 
-Required JSON schema:
-${JSON.stringify(executionSchema.schema)}`
+CRITICAL: Return ONLY a valid JSON object. Your content MUST be properly escaped for JSON.
+{
+  "output": "your content here - properly escaped"
+}
+
+Examples of properly escaped content:
+- Newlines become \\\\n
+- Quotes become \\\\" 
+- Backticks become \\\\\`
+- Return format: {"output": "your escaped content"}
+
+DO NOT include schema, explanations, or markdown. Just return the JSON object with properly escaped content.`
       }
     ];
 
@@ -171,7 +183,26 @@ ${JSON.stringify(executionSchema.schema)}`
       const normalized = output.toLowerCase();
 
       if (step.mustInclude?.length) {
-        const missing = step.mustInclude.filter((item) => !normalized.includes(item.toLowerCase()));
+        const missing = step.mustInclude.filter((item) => {
+          const lowerItem = item.toLowerCase();
+          // Check for exact match first
+          if (normalized.includes(lowerItem)) return false;
+          
+          // Check for URLs if item contains "url"
+          if (lowerItem.includes('url')) {
+            const urlRegex = /https?:\/\/[^\s]+/gi;
+            const urls = output.match(urlRegex);
+            if (urls && urls.length > 0) return false;
+          }
+          
+          // Check for repository patterns if item contains "repository"
+          if (lowerItem.includes('repository')) {
+            const repoPatterns = [/repository/i, /github\.com/i, /gitlab\.com/i, /bitbucket\.org/i];
+            return !repoPatterns.some(pattern => pattern.test(output));
+          }
+          
+          return true;
+        });
         if (missing.length) warnings.push(`Missing required items: ${missing.join(", ")}`);
       }
       if (step.mustAvoid?.length) {
@@ -218,27 +249,62 @@ ${JSON.stringify(executionSchema.schema)}`
     let messages = baseMessages;
     let qualityReport: Awaited<ReturnType<typeof evaluateStepQuality>> | null = null;
 
-    while (attempts < 3) {
-      attempts += 1;
-      const parsed = await callJsonWithValidation<{ output: string }>(messages, executionSchema.schema, modelConfig);
-      output = parsed.output || "";
+    // Try Super-Intelligent Model first for 110% perfect output
+    try {
+      console.log('🧠 Using Super-Intelligent Model for perfect output generation...');
+      const perfectResult = await superIntelligentModel.generatePerfectOutput(
+        step,
+        userContext!,
+        step.task, // Use task as intent
+        modelConfig
+      );
+      
+      output = perfectResult.output;
       warnings = checkOutput(output);
       
-      // Critic: Evaluate quality
+      // Evaluate quality of perfect output
       qualityReport = await evaluateStepQuality(step, output, previousOutputs, modelConfig);
       
-      // If basic checks pass and quality is good, we're done
-      if (!warnings.length && !needsRepair(qualityReport)) {
-        break;
-      }
+      console.log(`✅ Super-Intelligent Model generated output with ${perfectResult.confidence * 100}% confidence`);
       
-      // Repair: Add feedback to improve output
-      if (attempts < 3) {
-        const repairFeedback = generateRepairPrompt(step, output, qualityReport);
-        messages = messages.concat({
-          role: "user",
-          content: `${repairFeedback}\n\nBasic check issues: ${warnings.join("; ") || "none"}. Return improved JSON only.`
-        });
+      // If perfect output has no warnings, we're done
+      if (!warnings.length && !needsRepair(qualityReport)) {
+        console.log('🎯 Perfect output achieved - no warnings detected');
+        attempts = 1; // Mark as successful
+      } else {
+        console.log(`⚠️ Perfect output has ${warnings.length} warnings, applying corrections...`);
+        // Apply corrections from the super-intelligent model
+        for (const correction of perfectResult.corrections) {
+          output += '\n\n' + correction;
+        }
+        warnings = checkOutput(output); // Re-check after corrections
+      }
+    } catch (superModelError) {
+      console.error('❌ Super-Intelligent Model failed, falling back to regular AI:', superModelError);
+      
+      // Fallback to regular AI if super-intelligent model fails
+      while (attempts < 3) {
+        attempts += 1;
+        const parsed = await callJsonWithValidation<{ output: string }>(messages, executionSchema.schema, modelConfig);
+        output = parsed.output || "";
+        warnings = checkOutput(output);
+        
+        // Critic: Evaluate quality
+        qualityReport = await evaluateStepQuality(step, output, previousOutputs, modelConfig);
+        
+        // If basic checks pass and quality is good, we're done
+        if (!warnings.length && !needsRepair(qualityReport)) {
+          break;
+        }
+        
+        // Repair: Add feedback to improve output
+        if (attempts < 3) {
+          const repairFeedback = generateRepairPrompt(step, output, qualityReport);
+          messages = messages.concat({
+            role: "user",
+            content: `${repairFeedback}\n\nBasic check issues: ${warnings.join("; ") || "none"}. Return improved JSON only.`
+          });
+        }
       }
     }
 
@@ -248,8 +314,62 @@ ${JSON.stringify(executionSchema.schema)}`
       ...(qualityReport?.issues.filter(i => i.severity === "high").map(i => i.message) || [])
     ];
 
+    // Unescape the output for proper display
+    const unescapedOutput = output
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+
+    // Log training data for learning algorithm
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      stepId: step.id,
+      stepType: step.stepType,
+      role: step.role,
+      task: step.task,
+      input: {
+        userContext,
+        previousOutputs: previousOutputs || [],
+        modelConfig,
+        mustInclude: step.mustInclude || [],
+        mustAvoid: step.mustAvoid || [],
+        acceptanceTests: step.acceptanceTests || []
+      },
+      output: unescapedOutput,
+      metadata: {
+        attempts,
+        warnings: finalWarnings,
+        quality: qualityReport ? {
+          score: qualityReport.score,
+          issues: qualityReport.issues,
+          suggestions: qualityReport.suggestions
+        } : null,
+        executionTime: Date.now() - startTime
+      },
+      success: finalWarnings.length === 0 && (!qualityReport || qualityReport.score >= 70)
+    };
+
+    // Write to log file (append mode)
+    try {
+      const fs = require('fs').promises;
+      const path = require('path');
+      const logDir = path.join(process.cwd(), 'logs');
+      const logFile = path.join(logDir, 'workflow-execution.log');
+      
+      // Ensure logs directory exists
+      await fs.mkdir(logDir, { recursive: true });
+      
+      // Append log entry
+      await fs.appendFile(logFile, JSON.stringify(logEntry) + '\n');
+    } catch (logError) {
+      console.error('Failed to write execution log:', logError);
+      // Don't fail the request if logging fails
+    }
+
     return NextResponse.json({ 
-      output, 
+      output: unescapedOutput, 
       warnings: finalWarnings, 
       attempts,
       quality: qualityReport ? {

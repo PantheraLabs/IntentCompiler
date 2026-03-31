@@ -39,7 +39,7 @@ const FREE_MODELS: Record<
       strengths: ["simple", "fast", "chat"],
       contextWindow: 128000
     },
-    { model: "mixtral-8x7b-32768", strengths: ["general", "code"], contextWindow: 32768 },
+    { model: "mixtral-8x7b-32768", strengths: ["DECOMMISSIONED"], contextWindow: 0 },
     { model: "gemma2-9b-it", strengths: ["general", "chat"], contextWindow: 8192 }
   ],
   openrouter: [

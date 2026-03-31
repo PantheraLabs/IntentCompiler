@@ -7,6 +7,7 @@ import CompactDropdown from "@/components/ui/CompactDropdown";
 import SuggestionChips from "@/components/ui/SuggestionChips";
 import ModelRecommendationBadge from "@/components/ModelRecommendationBadge";
 import VibeLibrary from "@/components/VibeLibrary";
+import IntelligentQuestionsModal from "@/components/IntelligentQuestionsModal";
 import { isFreeModel, type ModelRecommendation } from "@/lib/modelRouter";
 import type {
   BehaviorDefinition,
@@ -18,6 +19,7 @@ import type {
   VibeTemplate,
   WorkflowStep
 } from "@/lib/types";
+import type { Question } from "@/lib/intelligentQuestioner";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0, scale: 0.98, filter: "blur(10px)" },
@@ -337,6 +339,10 @@ export default function ContextForm() {
   const [loadingRecommendation, setLoadingRecommendation] = useState(false);
   const [autoSelectedModel, setAutoSelectedModel] = useState<boolean>(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  
+  // INTELLIGENT QUESTIONING STATES
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [questions, setQuestions] = useState<Question[]>([]);
 
   // Auto-scan project on mount
   useEffect(() => {
@@ -375,6 +381,10 @@ export default function ContextForm() {
         if (res.ok) {
           const rec = await res.json();
           setRecommendation(rec);
+        } else {
+          console.error("Recommend API error:", res.status, res.statusText);
+          const errorText = await res.text();
+          console.error("Error response:", errorText);
         }
       } catch {
         // silently fail — just don't show a recommendation
@@ -401,13 +411,19 @@ export default function ContextForm() {
     const fetchModels = async () => {
       try {
         const res = await fetch("/api/models");
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Models API error:", res.status, errorText);
+          throw new Error(`Models API failed: ${res.status}`);
+        }
         const data = (await res.json()) as ModelsResponse;
-        if (!res.ok || !data.providers?.length) {
+        if (!data.providers?.length) {
           throw new Error(data.error || "No models available.");
         }
         setModels(data.providers);
         setModelConfig(data.defaultConfig);
       } catch (err) {
+        console.error("Failed to load models:", err);
         setError(err instanceof Error ? err.message : "Failed to load models.");
       } finally {
         setLoadingModels(false);
@@ -425,7 +441,7 @@ export default function ContextForm() {
     const timer = setTimeout(async () => {
       try {
         const [suggestionsRes, modelSelectionRes] = await Promise.allSettled([
-          fetch("/api/suggestions/suggest", {
+          fetch("/api/suggestions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ intent, modelConfig })
@@ -445,28 +461,60 @@ export default function ContextForm() {
         
         // Handle suggestions
         if (suggestionsRes.status === "fulfilled") {
-          const data = await suggestionsRes.value.json();
-          if (data.suggestions) {
-            setSuggestions(data.suggestions);
+          try {
+            const suggestionsResponse = await suggestionsRes.value;
+            if (!suggestionsResponse.ok) {
+              console.error("Suggestions API returned error:", suggestionsResponse.status, suggestionsResponse.statusText);
+              const errorText = await suggestionsResponse.text();
+              console.error("Error response body:", errorText);
+              throw new Error(`Suggestions API failed: ${suggestionsResponse.status}`);
+            }
+            const data = await suggestionsResponse.json();
+            if (data.suggestions) {
+              setSuggestions(data.suggestions);
+            }
+          } catch (parseError) {
+            console.error("Failed to parse suggestions response:", parseError);
+            const errorText = await suggestionsRes.value.text();
+            console.error("Raw response:", errorText);
           }
         }
         
         // Handle intelligent model selection
         if (modelSelectionRes.status === "fulfilled") {
-          const data = await modelSelectionRes.value.json();
-          if (data.success && data.selectedModel) {
-            // Only auto-apply if user hasn't manually selected a model yet
-            if (!modelConfig || modelConfig.model === models.find(m => m.provider === modelConfig.provider)?.models[0]) {
-              setModelConfig({
-                provider: data.selectedModel.provider,
-                model: data.selectedModel.model
-              });
-              setAutoSelectedModel(true);
-              console.log("Auto-selected optimal model:", data.selectedModel.model, "Reasoning:", data.reasoning);
-              
-              // Clear auto-selection indicator after 3 seconds
-              setTimeout(() => setAutoSelectedModel(false), 3000);
+          try {
+            const modelSelectionResponse = await modelSelectionRes.value;
+            if (!modelSelectionResponse.ok) {
+              console.error("Model selection API returned error:", modelSelectionResponse.status, modelSelectionResponse.statusText);
+              const errorText = await modelSelectionResponse.text();
+              console.error("Error response body:", errorText);
+              throw new Error(`Model selection API failed: ${modelSelectionResponse.status}`);
             }
+            const data = await modelSelectionResponse.json();
+            if (data.success && data.selectedModel) {
+              // Only auto-apply if user hasn't manually selected a model yet
+              // Allow auto-selection if: no config set, current model is default/first, OR recommendation is significantly better
+              const isFirstModel = modelConfig && modelConfig.model === models.find(m => m.provider === modelConfig.provider)?.models[0];
+              const isRecommendedModel = data.selectedModel.model.includes("llama-4") || 
+                                      data.selectedModel.model.includes("claude-3.5") || 
+                                      data.selectedModel.model.includes("gpt-4");
+              
+              if (!modelConfig || isFirstModel || isRecommendedModel) {
+                setModelConfig({
+                  provider: data.selectedModel.provider,
+                  model: data.selectedModel.model
+                });
+                setAutoSelectedModel(true);
+                console.log("Auto-selected optimal model:", data.selectedModel.model, "Reasoning:", data.reasoning);
+                
+                // Clear auto-selection indicator after 3 seconds
+                setTimeout(() => setAutoSelectedModel(false), 3000);
+              }
+            }
+          } catch (parseError) {
+            console.error("Failed to parse model selection response:", parseError);
+            const errorText = await modelSelectionRes.value.text();
+            console.error("Raw response:", errorText);
           }
         }
       } catch (err) {
@@ -573,15 +621,25 @@ export default function ContextForm() {
         modelConfig
       };
 
-      const res = await fetch("/api/compilation/compile", {
+      const res = await fetch("/api/compilation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
       const data = (await res.json()) as CompileResponse;
-      if (!res.ok || (!data.steps?.length && !data.workflow?.steps?.length)) {
-        throw new Error(data.error || "Compilation failed.");
+      console.log("Compilation response:", data);
+      
+      if (!res.ok) {
+        console.error("Compilation API error:", res.status, data);
+        throw new Error(data.error || `Compilation failed with status ${res.status}`);
+      }
+      
+      if (!data.steps?.length && !data.workflow?.steps?.length) {
+        console.error("No steps in compilation response:", data);
+        console.error("data.steps:", data.steps);
+        console.error("data.workflow?.steps:", data.workflow?.steps);
+        throw new Error(data.error || "No workflow steps generated.");
       }
 
       // Support both new workflow format and legacy format

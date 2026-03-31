@@ -126,16 +126,19 @@ function OutputRenderer({ output, format }: { output: string; format: string }) 
     );
   }
 
-  // Default markdown format with enhanced styling
+  // Default markdown format with consistent styling
   return (
     <div className="prose prose-invert prose-sm max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          h1: ({ children }) => <h1 className="text-xl font-bold text-text mb-3 mt-4">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-lg font-semibold text-text/90 mb-2 mt-4 border-b border-border/30 pb-1">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-base font-medium text-text/85 mb-2 mt-3">{children}</h3>,
-          p: ({ children }) => <p className="text-text/80 leading-relaxed mb-3">{children}</p>,
+          h1: ({ children }) => <h1 className="text-lg font-semibold text-text mb-3 mt-4">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-base font-medium text-text/90 mb-2 mt-3 border-b border-border/20 pb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-sm font-medium text-text/85 mb-2 mt-2">{children}</h3>,
+          h4: ({ children }) => <h4 className="text-sm font-medium text-text/80 mb-2 mt-2">{children}</h4>,
+          h5: ({ children }) => <h5 className="text-sm font-medium text-text/75 mb-2 mt-2">{children}</h5>,
+          h6: ({ children }) => <h6 className="text-sm font-medium text-text/70 mb-2 mt-2">{children}</h6>,
+          p: ({ children }) => <p className="text-text/80 leading-relaxed mb-3 text-sm">{children}</p>,
           ul: ({ children }) => <ul className="space-y-1.5 my-2 ml-4">{children}</ul>,
           ol: ({ children }) => <ol className="space-y-1.5 my-2 ml-4 list-decimal">{children}</ol>,
           li: ({ children }) => (
