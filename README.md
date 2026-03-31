@@ -19,13 +19,16 @@ Complex technical tasks often fail due to poorly defined context, shifting requi
 
 - **Smart Suggestions:** LLM-powered field recommendations (Project, Audience, Style, Tone) tailored to your specific intent.
 - **Reactive Workflows:** A dynamic execution interface where steps can be run, refined, or modified individually.
-- **Instruction Generator:** Exports intents into 6+ specialized formats including `CLAUDE.md`, `AGENTS.md`, and `.windsurfrules`.
-- **Inspiration Marquee:** An animated, interactive carousel of diverse example intents to jumpstart your workflow.
-- **Intelligent Model Orchestration:** A 3-tier model strategy (Quality, Efficiency, Speed) that automatically selects the best LLM (Llama 3.3, Claude 3.5, GPT-4o-mini, etc.) for each sub-task.
-- **Dynamic Provider Support:** Real-time fetching and selection of models from OpenRouter, Groq, and OpenAI.
-- **Local LLM Support (Ollama):** High-speed, private inference using models running on your local machine (e.g., Llama 3, Mistral, Phi-3).
-- **Vibe Mode:** A dedicated high-fidelity UI view for ultra-fast architectural building.
+- **Instruction Generator:** Exports intents into 6+ specialized formats including `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, and `.windsurfrules`.
+- **Multi-Agent Orchestration:** Coordinates specialized AI agents for complex system building with role matching and skill registry.
+- **Intelligent Model Orchestration:** A 3-tier model strategy (Quality, Efficiency, Speed) that automatically selects the best LLM for each sub-task.
+- **Dynamic Provider Support:** Real-time fetching and selection of models from OpenRouter, Groq, OpenAI, and Ollama.
+- **Local LLM Support (Ollama):** High-speed, private inference using models running on your local machine.
 - **Project Scan Engine:** Automatically detects your project's name and tech stack (Next.js, React, Tailwind, TS) to provide zero-click context.
+- **Quality Scoring System:** 6-dimensional evaluation (correctness, specificity, executability, safety, compatibility, brevity) with validation gates.
+- **Vibe Mode:** A dedicated high-fidelity UI view for ultra-fast architectural building with reusable templates.
+- **Intelligent Questioning:** AI-driven clarification system that asks targeted questions to refine vague intent.
+- **Step Validation:** Execution-time validation with rollback capabilities and error recovery.
 
 ## Architecture
 
@@ -42,23 +45,71 @@ Intent Compiler is built with a **Fullstack Next.js (App Router)** architecture,
 - **UI:** [React 19](https://reactjs.org/), [Tailwind CSS](https://tailwindcss.com/)
 - **Animations:** [Framer Motion](https://www.framer.com/motion/)
 - **AI Integration:** [OpenAI SDK](https://github.com/openai/openai-node), [OpenRouter](https://openrouter.ai/), [Groq API](https://groq.com/)
+- **Validation:** [Zod](https://zod.dev/) (schema validation), [AJV](https://ajv.js.org/) (JSON validation)
+- **Database:** [SQLite](https://www.sqlite.org/) (better-sqlite3 for local storage)
+- **Export:** [jsPDF](https://github.com/parallax/jsPDF) (PDF generation), [JSZip](https://stuk.github.io/jszip/) (bundle exports)
+- **Markdown:** [react-markdown](https://github.com/remarkjs/react-markdown), [remark-gfm](https://github.com/remarkjs/remark-gfm)
 - **Language:** TypeScript 5.8
-- **Formatting:** ESLint
+- **Linting:** ESLint
 
 ## Repository Structure
 
 ```text
 /app
-  /api              → Serverless LLM endpoints (compile, suggest, execute)
-  /workflow         → The interactive workflow execution page
+  /api                    → Serverless API endpoints
+    /analysis             → Project and repo analysis endpoints
+    /compilation          → Intent compilation and workflow generation
+    /execution            → Step execution and validation
+    /generation           → Instruction file generation (CLAUDE.md, etc.)
+    /model-selection      → Model routing and recommendations
+    /suggestions          → LLM-powered field suggestions
+    /validation           → Quality scoring and validation gates
+  /workflow               → Interactive workflow execution page
 /components
-  /ui               → Reusable glassmorphic components (Dropdowns, Chips)
-  ContextForm       → Main intent entry & context refinement engine
-  WorkflowContainer → Step-by-step execution & result previewer
+  /ui                     → Reusable glassmorphic components
+  ContextForm.tsx         → Main intent entry & context refinement engine
+  ExecutionPanel.tsx      → Step execution interface
+  FileTree.tsx            → Project structure visualization
+  HistoryPanel.tsx        → Workflow history and versioning
+  InputForm.tsx           → Structured input collection
+  IntelligentQuestionsModal.tsx → AI-driven clarification UI
+  ModelRecommendationBadge.tsx    → Model selection indicators
+  RepoInput.tsx           → Repository URL input with analysis
+  StepCard.tsx            → Individual workflow step component
+  TierBadge.tsx           → Quality/Efficiency/Speed tier indicator
+  VibeLibrary.tsx         → Template browser and selector
+  WelcomeIntro.tsx        → Onboarding and example carousel
+  WorkflowContainer.tsx   → Step-by-step execution orchestrator
 /lib
-  aicc.ts           → Core AI provider & model management (AICC)
-  contextCompiler.ts → Logic for structured prompt building & compilation
-/brain              → Persistent project knowledge and walkthroughs
+  /core                   → Core utilities (JSON guard, OpenAI, storage)
+  aicc.ts                 → AI Control Center - multi-provider abstraction
+  agentOrchestrator.ts    → Multi-agent coordination and dispatch
+  contextCompiler.ts    → Structured prompt building & compilation
+  contextEngineer.ts     → Advanced context refinement pipeline
+  db.ts                   → SQLite database interface
+  dynamicRoles.ts         → Role definition and matching system
+  executionEngine.ts      → Workflow execution with rollback support
+  fileExporter.ts         → ZIP, PDF export functionality
+  instructionAssembler.ts → Multi-format instruction file builder
+  instructionQuality.ts   → Quality scoring for generated instructions
+  intelligentQuestioner.ts → AI-driven intent clarification
+  jsonGuard.ts            → Robust JSON parsing with fallbacks
+  knowledgeBase.ts        → Domain knowledge and best practices
+  logger.ts               → Structured logging system
+  modelRouter.ts          → Intelligent model selection by task type
+  phaseWorkflow.ts        → Phased workflow state management
+  projectAnalyzer.ts      → Automatic project structure detection
+  repoAnalyzer.ts         → GitHub repository analysis
+  roleDatabase.ts         → Agent role definitions and skills
+  roleMatcher.ts          → Intelligent agent-role matching
+  schemas.ts              → Zod validation schemas
+  skillsRegistry.ts       → Agent capabilities registry
+  stepQuality.ts          → Step-level quality validation
+  superIntelligentModel.ts → Advanced model orchestration
+  tierConfig.ts           → Tier-based model configuration
+  types.ts                → TypeScript type definitions
+  validationCheckpoint.ts → Execution validation gates
+  vibeStorage.ts          → Vibe template persistence
 ```
 
 ## Installation
@@ -124,6 +175,6 @@ npm run lint
 
 ## License
 
-Copyright (c) 2025 Rishi Praseeth Krishnan. All rights reserved.
+Copyright (c) 2026 Rishi Praseeth Krishnan. All rights reserved.
 
 This software and its source code are for viewing and reference only. No license is granted to use, copy, modify, distribute, or create derivative works without express written permission. See the [LICENSE](file:///c:/Users/rishi/Documents/GitHub/IntentCompiler/LICENSE) file for the full restrictive terms.
