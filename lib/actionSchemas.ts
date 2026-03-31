@@ -333,7 +333,8 @@ export function getNextAction(
       type: 'generate_output',
       output: result.output as string,
       confidence: 1.0,
-      qualityScore: 100
+      qualityScore: 100,
+      warnings: []
     };
   }
   
