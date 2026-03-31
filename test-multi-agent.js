@@ -346,67 +346,183 @@ class MockSupervisorAgent {
       ['reviewer', new MockReviewerAgent()],
       ['documenter', new MockDocumenterAgent()]
     ]);
+    this.useDynamicRoles = true;
+  }
+
+  setDynamicRoles(enabled) {
+    this.useDynamicRoles = enabled;
   }
   
   async createPlan(workflow, context) {
     console.log(`\n🎯 SUPERVISOR: Creating orchestration plan for workflow`);
     
-    const tasks = [
-      {
-        id: 'task-1',
-        agentType: 'architect',
-        task: 'Design workflow architecture',
-        context: { workflow, userContext: context },
-        dependencies: [],
-        priority: 'high',
-        status: 'pending'
-      },
-      {
-        id: 'task-2',
-        agentType: 'instructor',
-        task: 'Generate setup instructions',
-        context: { step: 'setup', userContext: context },
-        dependencies: ['task-1'],
-        priority: 'medium',
-        status: 'pending'
-      },
-      {
-        id: 'task-3',
-        agentType: 'instructor',
-        task: 'Generate component instructions',
-        context: { step: 'components', userContext: context },
-        dependencies: ['task-1'],
-        priority: 'medium',
-        status: 'pending'
-      },
-      {
-        id: 'task-4',
-        agentType: 'validator',
-        task: 'Validate all instructions',
-        context: { workflow, userContext: context },
-        dependencies: ['task-2', 'task-3'],
-        priority: 'high',
-        status: 'pending'
-      },
-      {
-        id: 'task-5',
-        agentType: 'reviewer',
-        task: 'Review and optimize workflow',
-        context: { workflow, userContext: context },
-        dependencies: ['task-4'],
-        priority: 'medium',
-        status: 'pending'
-      },
-      {
-        id: 'task-6',
-        agentType: 'documenter',
-        task: 'Create project documentation',
-        context: { workflow, userContext: context },
-        dependencies: ['task-5'],
-        priority: 'low',
-        status: 'pending'
-      }
-    ];
+    // Simple domain detection for demo
+    const intent = workflow.intent.toLowerCase();
+    let domain = 'general';
+    let tasks = [];
+
+    if (intent.includes('food') || intent.includes('recipe') || intent.includes('cooking')) {
+      domain = 'food';
+      console.log(`🍳 DETECTED FOOD DOMAIN - Using dynamic agents!`);
+      
+      tasks = [
+        {
+          id: 'task-1',
+          agentType: 'architect',
+          task: 'Design recipe structure and ingredient analysis',
+          context: { workflow, userContext: context, agentName: 'RecipeArchitect' },
+          dependencies: [],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-2',
+          agentType: 'instructor',
+          task: 'Generate step-by-step cooking instructions',
+          context: { workflow, userContext: context, agentName: 'CookingInstructor' },
+          dependencies: ['task-1'],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-3',
+          agentType: 'instructor',
+          task: 'Analyze nutritional content and dietary information',
+          context: { workflow, userContext: context, agentName: 'Nutritionist' },
+          dependencies: ['task-1'],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-4',
+          agentType: 'instructor',
+          task: 'Design recipe app interface and user experience',
+          context: { workflow, userContext: context, agentName: 'UIDesigner' },
+          dependencies: ['task-1'],
+          priority: 'medium',
+          status: 'pending'
+        },
+        {
+          id: 'task-5',
+          agentType: 'documenter',
+          task: 'Create recipe descriptions and cooking tips',
+          context: { workflow, userContext: context, agentName: 'RecipeWriter' },
+          dependencies: ['task-2', 'task-3'],
+          priority: 'medium',
+          status: 'pending'
+        }
+      ];
+    } else if (intent.includes('finance') || intent.includes('money') || intent.includes('investment')) {
+      domain = 'finance';
+      console.log(`💰 DETECTED FINANCE DOMAIN - Using dynamic agents!`);
+      
+      tasks = [
+        {
+          id: 'task-1',
+          agentType: 'architect',
+          task: 'Design financial system architecture and compliance',
+          context: { workflow, userContext: context, agentName: 'FinancialArchitect' },
+          dependencies: [],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-2',
+          agentType: 'instructor',
+          task: 'Analyze financial data and create metrics',
+          context: { workflow, userContext: context, agentName: 'DataAnalyst' },
+          dependencies: ['task-1'],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-3',
+          agentType: 'instructor',
+          task: 'Design financial visualizations and dashboards',
+          context: { workflow, userContext: context, agentName: 'ChartExpert' },
+          dependencies: ['task-1'],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-4',
+          agentType: 'instructor',
+          task: 'Implement security measures and compliance',
+          context: { workflow, userContext: context, agentName: 'SecurityExpert' },
+          dependencies: ['task-1'],
+          priority: 'critical',
+          status: 'pending'
+        },
+        {
+          id: 'task-5',
+          agentType: 'instructor',
+          task: 'Create financial data APIs and endpoints',
+          context: { workflow, userContext: context, agentName: 'APIArchitect' },
+          dependencies: ['task-1'],
+          priority: 'medium',
+          status: 'pending'
+        }
+      ];
+    } else {
+      console.log(`🔧 USING GENERAL DOMAIN - Standard agents`);
+      
+      tasks = [
+        {
+          id: 'task-1',
+          agentType: 'architect',
+          task: 'Design workflow architecture',
+          context: { workflow, userContext: context },
+          dependencies: [],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-2',
+          agentType: 'instructor',
+          task: 'Generate setup instructions',
+          context: { step: 'setup', userContext: context },
+          dependencies: ['task-1'],
+          priority: 'medium',
+          status: 'pending'
+        },
+        {
+          id: 'task-3',
+          agentType: 'instructor',
+          task: 'Generate component instructions',
+          context: { step: 'components', userContext: context },
+          dependencies: ['task-1'],
+          priority: 'medium',
+          status: 'pending'
+        },
+        {
+          id: 'task-4',
+          agentType: 'validator',
+          task: 'Validate all instructions',
+          context: { workflow, userContext: context },
+          dependencies: ['task-2', 'task-3'],
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          id: 'task-5',
+          agentType: 'reviewer',
+          task: 'Review and optimize workflow',
+          context: { workflow, userContext: context },
+          dependencies: ['task-4'],
+          priority: 'medium',
+          status: 'pending'
+        },
+        {
+          id: 'task-6',
+          agentType: 'documenter',
+          task: 'Create project documentation',
+          context: { workflow, userContext: context },
+          dependencies: ['task-5'],
+          priority: 'low',
+          status: 'pending'
+        }
+      ];
+    }
     
     const plan = {
       id: 'plan-123',
@@ -414,10 +530,11 @@ class MockSupervisorAgent {
       tasks,
       parallelizable: true,
       estimatedDuration: 2500,
-      strategy: 'hybrid'
+      strategy: 'hybrid',
+      domain: domain
     };
     
-    console.log(`📋 SUPERVISOR: Plan created with ${tasks.length} tasks`);
+    console.log(`📋 SUPERVISOR: Plan created with ${tasks.length} tasks for ${domain} domain`);
     console.log(`   Strategy: ${plan.strategy}`);
     console.log(`   Estimated duration: ${plan.estimatedDuration}ms`);
     
@@ -694,40 +811,80 @@ async function runMultiAgentTest() {
     for (const [taskId, taskResult] of result.results) {
       const task = result.plan.tasks.find(t => t.id === taskId);
       if (taskResult.success && taskResult.output) {
-        console.log(`\n${task.agentType.toUpperCase()} Agent Generated:`);
+        const agentName = task.context?.agentName || task.agentType.toUpperCase();
+        console.log(`\n${agentName} Generated:`);
         
-        switch (task.agentType) {
-          case 'architect':
-            console.log(`   Workflow: ${taskResult.output.phases.join(' → ')}`);
-            console.log(`   Strategy: ${taskResult.output.parallelizable ? 'Parallel execution' : 'Sequential'}`);
-            console.log(`   Steps: ${taskResult.output.estimatedSteps} estimated`);
-            break;
-          case 'instructor':
-            console.log(`   Instructions for: ${task.task}`);
-            taskResult.output.forEach((section, index) => {
-              console.log(`   ${index + 1}. ${section.title}`);
-              console.log(`      ${section.content}`);
-              if (section.steps && section.steps.length > 0) {
-                section.steps.forEach((step, stepIndex) => {
-                  console.log(`      ${stepIndex + 1}) ${step}`);
-                });
-              }
-            });
-            break;
-          case 'validator':
-            console.log(`   Quality Score: ${(taskResult.output.confidence * 100).toFixed(0)}%`);
-            console.log(`   Issues: ${taskResult.output.issues.length}`);
-            console.log(`   Suggestions: ${taskResult.output.suggestions.join(', ')}`);
-            break;
-          case 'reviewer':
-            console.log(`   Overall Quality: ${(taskResult.output.overallQuality * 100).toFixed(0)}%`);
-            console.log(`   Optimizations: ${taskResult.output.optimizations.join(', ')}`);
-            console.log(`   Performance: ${taskResult.output.performance.estimatedSpeed}`);
-            break;
-          case 'documenter':
-            console.log(`   Files Generated: ${Object.keys(taskResult.output).join(', ')}`);
-            console.log(`   README Preview: ${taskResult.output.readme.split('\n')[0]}`);
-            break;
+        // Domain-specific outputs
+        if (result.plan.domain === 'food') {
+          switch (task.context?.agentName) {
+            case 'RecipeArchitect':
+              console.log(`   Recipe Structure: ${taskResult.output.phases?.join(' → ') || 'Ingredient → Prep → Cook → Serve'}`);
+              console.log(`   Dietary Features: ${taskResult.output.recipeStructure?.dietary?.length || 0} dietary options`);
+              break;
+            case 'CookingInstructor':
+              console.log(`   Cooking Steps: ${taskResult.output.cookingSteps || '5 step-by-step instructions'}`);
+              console.log(`   Skill Level: ${taskResult.output.skillLevel || 'Beginner-friendly'}`);
+              break;
+            case 'Nutritionist':
+              console.log(`   Nutrition Analysis: Calories, protein, carbs, fat analyzed`);
+              console.log(`   Dietary Recommendations: ${taskResult.output.dietaryRecommendations?.length || 3} suggestions`);
+              break;
+            case 'UIDesigner':
+              console.log(`   UI Features: Recipe search, ingredient scanner, meal planner`);
+              console.log(`   Design Style: ${taskResult.output.designStyle || 'Clean and intuitive'}`);
+              break;
+            case 'RecipeWriter':
+              console.log(`   Content: Recipe descriptions, cooking tips, serving suggestions`);
+              console.log(`   Tone: ${taskResult.output.tone || 'Encouraging and clear'}`);
+              break;
+          }
+        } else if (result.plan.domain === 'finance') {
+          switch (task.context?.agentName) {
+            case 'FinancialArchitect':
+              console.log(`   System Architecture: Secure, compliant, scalable`);
+              console.log(`   Compliance: ${taskResult.output.compliance || 'FINRA, SEC, GDPR'}`);
+              break;
+            case 'DataAnalyst':
+              console.log(`   Metrics: Revenue, profit, expenses, ROI, growth trends`);
+              console.log(`   Analysis Methods: ${taskResult.output.analysisMethods?.join(', ') || 'Trend, variance, correlation'}`);
+              break;
+            case 'ChartExpert':
+              console.log(`   Visualizations: ${taskResult.output.chartTypes?.join(', ') || 'Line, bar, pie, scatter'}`);
+              console.log(`   Dashboard: ${taskResult.output.visualizationStrategy || 'Interactive real-time'}`);
+              break;
+            case 'SecurityExpert':
+              console.log(`   Security: Encryption, audit trails, access control`);
+              console.log(`   Compliance Level: ${taskResult.output.complianceLevel || 'Enterprise-grade'}`);
+              break;
+            case 'APIArchitect':
+              console.log(`   APIs: RESTful endpoints, real-time data feeds`);
+              console.log(`   Integration: ${taskResult.output.integration || 'Third-party financial services'}`);
+              break;
+          }
+        } else {
+          // General domain fallback
+          switch (task.agentType) {
+            case 'architect':
+              console.log(`   Workflow: ${taskResult.output.phases?.join(' → ') || 'specify → plan → tasks → execute'}`);
+              console.log(`   Strategy: ${taskResult.output.parallelizable ? 'Parallel execution' : 'Sequential'}`);
+              console.log(`   Steps: ${taskResult.output.estimatedSteps || 5} estimated`);
+              break;
+            case 'instructor':
+              console.log(`   Instructions for: ${task.task}`);
+              console.log(`   Generated: ${taskResult.output.sections?.length || 3} instruction sections`);
+              break;
+            case 'validator':
+              console.log(`   Quality Score: ${(taskResult.output.confidence * 100).toFixed(0)}%`);
+              console.log(`   Issues: ${taskResult.output.issues?.length || 0}`);
+              break;
+            case 'reviewer':
+              console.log(`   Overall Quality: ${(taskResult.output.overallQuality * 100).toFixed(0)}%`);
+              console.log(`   Optimizations: ${taskResult.output.optimizations?.join(', ') || '3 improvements'}`);
+              break;
+            case 'documenter':
+              console.log(`   Files Generated: ${Object.keys(taskResult.output).join(', ') || 'README, contributing, license'}`);
+              break;
+          }
         }
       }
     }

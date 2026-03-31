@@ -1,0 +1,17 @@
+2026-03-31T14:17:03.587Z [INFO] [DynamicRoles] Dynamic roles test started | Context: {}
+2026-03-31T14:17:03.589Z [INFO] [DynamicRoles] Domain detection test 1 | Context: {"intent":"build a recipe app that tells me what food i can make with what i have in the fridge","expected":"food","detected":"food","correct":true}
+2026-03-31T14:17:03.589Z [INFO] [DynamicRoles] Domain detection test 2 | Context: {"intent":"create a financial dashboard for tracking investments and budget","expected":"finance","detected":"finance","correct":true}
+2026-03-31T14:17:03.590Z [INFO] [DynamicRoles] Domain detection test 3 | Context: {"intent":"build a social media platform for sharing photos and messages","expected":"social","detected":"social","correct":true}
+2026-03-31T14:17:03.599Z [INFO] [DynamicRoles] Domain detection test 4 | Context: {"intent":"design an online learning platform with courses and quizzes","expected":"education","detected":"education","correct":true}
+2026-03-31T14:17:03.600Z [INFO] [DynamicRoles] Domain detection test 5 | Context: {"intent":"create an e-commerce store with shopping cart and payment processing","expected":"ecommerce","detected":"ecommerce","correct":true}
+2026-03-31T14:17:03.601Z [INFO] [DynamicRoles] Domain detection test 6 | Context: {"intent":"build a simple web application","expected":"general","detected":"general","correct":true}
+2026-03-31T14:17:03.602Z [INFO] [DynamicRoles] Domain agents for food | Context: {"agentCount":5}
+2026-03-31T14:17:03.603Z [INFO] [DynamicRoles] Domain agents for finance | Context: {"agentCount":5}
+2026-03-31T14:17:03.604Z [INFO] [DynamicRoles] Domain agents for social | Context: {"agentCount":5}
+2026-03-31T14:17:03.605Z [INFO] [DynamicRoles] Domain agents for education | Context: {"agentCount":5}
+2026-03-31T14:17:03.607Z [INFO] [DynamicRoles] Domain agents for ecommerce | Context: {"agentCount":5}
+2026-03-31T14:17:03.608Z [INFO] [DynamicRoles] Domain agents for general | Context: {"agentCount":5}
+2026-03-31T14:17:03.610Z [INFO] [DynamicRoles] Complete workflow test 1 | Context: {"intent":"build a recipe app that tells me what food i can make with what i have in the fridge","domain":"food","agentCount":5,"estimatedTime":2000}
+2026-03-31T14:17:03.611Z [INFO] [DynamicRoles] Complete workflow test 2 | Context: {"intent":"create a financial dashboard for tracking investments","domain":"finance","agentCount":5,"estimatedTime":2000}
+2026-03-31T14:17:03.612Z [INFO] [DynamicRoles] Complete workflow test 3 | Context: {"intent":"design a social platform for sharing photos","domain":"social","agentCount":5,"estimatedTime":2000}
+2026-03-31T14:17:03.612Z [INFO] [DynamicRoles] Dynamic roles test completed successfully | Context: {}

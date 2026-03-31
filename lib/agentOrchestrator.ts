@@ -14,6 +14,7 @@ import {
   OrchestrationPlanSchema
 } from './schemas';
 import { StepAction } from './actionSchemas';
+import { dynamicAgentFactory, DynamicAgent } from './dynamicRoles';
 
 // ============================================
 // SPECIALIZED AGENTS
@@ -391,15 +392,163 @@ Please read CONTRIBUTING.md for details.
  * Supervisor Agent - Orchestrates and delegates to specialized agents
  */
 class SupervisorAgent {
-  private agents: Map<AgentType, Agent> = new Map();
+  private agents: Map<string, Agent> = new Map();
+  private dynamicAgents: Map<string, DynamicAgent> = new Map();
+  private useDynamicRoles: boolean = true;
 
   constructor() {
-    // Register specialized agents
+    // Register fallback agents
     this.agents.set('architect', new ArchitectAgent());
     this.agents.set('instructor', new InstructorAgent());
     this.agents.set('validator', new ValidatorAgent());
     this.agents.set('reviewer', new ReviewerAgent());
     this.agents.set('documenter', new DocumenterAgent());
+  }
+
+  /**
+   * Enable or disable dynamic roles
+   */
+  setDynamicRoles(enabled: boolean): void {
+    this.useDynamicRoles = enabled;
+  }
+
+  /**
+   * Create dynamic orchestration plan based on intent
+   */
+  async createDynamicPlan(
+    workflow: Workflow,
+    context: UserContext
+  ): Promise<OrchestrationPlan> {
+    // Create dynamic agents based on intent
+    const dynamicConfig = dynamicAgentFactory.createDynamicAgents(workflow.intent, context);
+    
+    // Clear previous dynamic agents
+    this.dynamicAgents.clear();
+    
+    // Create and register dynamic agents
+    const tasks: AgentTask[] = [];
+    
+    for (const agentDef of dynamicConfig.agents) {
+      const dynamicAgent = new DynamicAgent(agentDef, dynamicConfig.domain);
+      this.dynamicAgents.set(agentDef.name, dynamicAgent);
+      
+      // Create task for this agent
+      const task: AgentTask = {
+        id: crypto.randomUUID(),
+        agentType: agentDef.type,
+        task: this.getAgentTask(agentDef, workflow, context),
+        context: { 
+          workflow, 
+          userContext: context,
+          agentDefinition: agentDef,
+          domain: dynamicConfig.domain
+        },
+        dependencies: this.getTaskDependencies(agentDef, tasks),
+        priority: agentDef.priority as 'high' | 'medium' | 'low',
+        status: 'pending'
+      };
+      
+      tasks.push(task);
+    }
+
+    const plan: OrchestrationPlan = {
+      id: crypto.randomUUID(),
+      workflowId: workflow.id,
+      tasks,
+      parallelizable: this.canParallelize(tasks),
+      estimatedDuration: this.estimateDuration(tasks),
+      strategy: this.selectStrategy(tasks)
+    };
+
+    // Validate plan
+    const validation = validateWithSchema(OrchestrationPlanSchema, plan);
+    if (!validation.success) {
+      throw new Error(`Invalid orchestration plan: ${validation.errors}`);
+    }
+
+    return plan;
+  }
+
+  /**
+   * Get appropriate task for agent based on its definition
+   */
+  private getAgentTask(agentDef: any, workflow: Workflow, context: UserContext): string {
+    const domainTasks: Record<string, Record<string, string>> = {
+      food: {
+        RecipeArchitect: 'Design recipe structure and ingredient analysis',
+        CookingInstructor: 'Generate step-by-step cooking instructions',
+        Nutritionist: 'Analyze nutritional content and dietary information',
+        UIDesigner: 'Design recipe app interface and user experience',
+        RecipeWriter: 'Create recipe descriptions and cooking tips'
+      },
+      finance: {
+        FinancialArchitect: 'Design financial system architecture and compliance',
+        DataAnalyst: 'Analyze financial data and create metrics',
+        ChartExpert: 'Design financial visualizations and dashboards',
+        SecurityExpert: 'Implement security measures and compliance',
+        APIArchitect: 'Create financial data APIs and endpoints'
+      },
+      social: {
+        SocialArchitect: 'Design social platform architecture and user flows',
+        UXDesigner: 'Design social media interface and interactions',
+        BackendArchitect: 'Create scalable backend for social features',
+        DatabaseDesigner: 'Design social data models and relationships',
+        ContentModerator: 'Implement content moderation and safety features'
+      },
+      education: {
+        EducationArchitect: 'Design learning platform architecture',
+        CurriculumDesigner: 'Create curriculum structure and learning paths',
+        ContentExpert: 'Generate educational content and materials',
+        AssessmentDesigner: 'Create quizzes and assessment systems',
+        StudentExperience: 'Design student engagement and motivation features'
+      },
+      ecommerce: {
+        CommerceArchitect: 'Design e-commerce system architecture',
+        ProductManager: 'Create product catalog and management system',
+        PaymentExpert: 'Implement payment processing and security',
+        UXDesigner: 'Design shopping experience and checkout flow',
+        InventoryManager: 'Create inventory and order management system'
+      }
+    };
+
+    const domain = dynamicAgentFactory.getDomainTemplate('food') ? 'food' : 'general';
+    
+    if (domainTasks[domain] && domainTasks[domain][agentDef.name]) {
+      return domainTasks[domain][agentDef.name];
+    }
+
+    // Fallback to generic task
+    return `${agentDef.expertise.join(' & ')}: ${agentDef.capabilities.slice(0, 2).join(', ')}`;
+  }
+
+  /**
+   * Get task dependencies based on agent definition
+   */
+  private getTaskDependencies(agentDef: any, existingTasks: AgentTask[]): string[] {
+    const dependencies: string[] = [];
+    
+    // Architect agents always run first (no dependencies)
+    if (agentDef.type === 'architect') {
+      return [];
+    }
+    
+    // Find architect task as dependency
+    const architectTask = existingTasks.find(t => t.agentType === 'architect');
+    if (architectTask) {
+      dependencies.push(architectTask.id);
+    }
+    
+    // Add other dependencies based on agent definition
+    if (agentDef.dependencies) {
+      for (const depName of agentDef.dependencies) {
+        const depTask = existingTasks.find(t => t.task.includes(depName));
+        if (depTask) {
+          dependencies.push(depTask.id);
+        }
+      }
+    }
+    
+    return dependencies;
   }
 
   /**
@@ -411,6 +560,12 @@ class SupervisorAgent {
   ): Promise<OrchestrationPlan> {
     const tasks: AgentTask[] = [];
 
+    // Use dynamic roles if enabled
+    if (this.useDynamicRoles) {
+      return this.createDynamicPlan(workflow, context);
+    }
+
+    // Fallback to fixed roles
     // Task 1: Architecture design
     tasks.push({
       id: crypto.randomUUID(),
@@ -576,7 +731,17 @@ class SupervisorAgent {
     task: AgentTask,
     context: UserContext
   ): Promise<AgentTaskResult> {
-    const agent = this.agents.get(task.agentType);
+    let agent;
+
+    // Try dynamic agents first
+    if (this.useDynamicRoles && task.context?.agentDefinition) {
+      agent = this.dynamicAgents.get(task.context.agentDefinition.name);
+    }
+
+    // Fallback to static agents
+    if (!agent) {
+      agent = this.agents.get(task.agentType);
+    }
     
     if (!agent) {
       return {
@@ -666,8 +831,16 @@ class SupervisorAgent {
 export class AgentOrchestrator {
   private supervisor: SupervisorAgent;
 
-  constructor() {
+  constructor(useDynamicRoles: boolean = true) {
     this.supervisor = new SupervisorAgent();
+    this.supervisor.setDynamicRoles(useDynamicRoles);
+  }
+
+  /**
+   * Enable or disable dynamic roles
+   */
+  setDynamicRoles(enabled: boolean): void {
+    this.supervisor.setDynamicRoles(enabled);
   }
 
   /**
