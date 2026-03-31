@@ -1,0 +1,15 @@
+Set up deployment infrastructure for: "build a recipe app for cooking"
+
+Platform: Docker
+Scale: Medium
+
+Create:
+1. Docker configuration (Dockerfile + docker-compose.yml)
+2. CI/CD pipeline (GitHub Actions)
+3. Environment configuration
+4. Nginx reverse proxy
+5. SSL/TLS setup
+6. Monitoring and logging
+7. Backup strategy
+
+Include security best practices and scaling strategy.

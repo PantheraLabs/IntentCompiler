@@ -1,0 +1,16 @@
+Build a React frontend for: "build a recipe app for cooking"
+
+Tech stack:
+- Framework: React + Next.js 14
+- Styling: Tailwind CSS
+- State: Zustand
+- Forms: React Hook Form + Zod
+
+Create:
+1. Complete component structure
+2. Authentication UI (login, register)
+3. Main dashboard/listing pages
+4. Create/edit forms
+5. Responsive design (mobile-first)
+
+Include component hierarchy, state management, and API integration.

@@ -1,0 +1,21 @@
+Create a Node.js + React application architecture for: "build a recipe app for cooking"
+
+Requirements:
+- Database: PostgreSQL with proper schema design
+- Backend: Node.js with RESTful API
+- Frontend: React with modern UI/UX
+- Deployment: Docker with CI/CD
+- Scale: Medium
+
+Domain requirements from experts:
+- RecipeArchitect
+- Nutritionist
+- CookingInstructor
+
+Include:
+1. Complete project structure
+2. Technology stack with versions
+3. Database schema with relationships
+4. API endpoint list
+5. Security considerations
+6. Scalability strategy

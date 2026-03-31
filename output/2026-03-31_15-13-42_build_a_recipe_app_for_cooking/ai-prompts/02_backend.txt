@@ -1,0 +1,16 @@
+Build a Node.js backend API for: "build a recipe app for cooking"
+
+Tech stack:
+- Runtime: Node.js
+- Database: PostgreSQL
+- ORM: Prisma
+- Auth: JWT
+
+Create:
+1. Complete database schema with relationships
+2. RESTful API endpoints (CRUD operations)
+3. Authentication & authorization
+4. Input validation & error handling
+5. Business logic incorporating domain expertise
+
+Include file structure, API definitions, and testing strategy.
